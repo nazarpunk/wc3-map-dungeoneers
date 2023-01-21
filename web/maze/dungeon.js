@@ -8,13 +8,6 @@ const ctx = canvas.getContext('2d');
 
 const random = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
-class Point {
-	constructor(x, y) {
-		this.x = x;
-		this.y = y
-	}
-}
-
 const drawRect = (color, x, y, w, h) => {
 	ctx.fillStyle = color;
 	ctx.fillRect(
@@ -27,45 +20,28 @@ const drawRect = (color, x, y, w, h) => {
 
 
 class Room {
-	index = 0;
+	constructor(x, y, w, h) {
+		this.x = x;
+		this.y = y;
+		this.w = w;
+		this.h = h;
+	}
+
+	paint() {
+		drawRect('#888', this.x, this.y, this.w, this.h);
+	}
+}
+
+class RoomContainer {
+	/** @type {?Room} */ room = null;
 
 	constructor(x, y, w, h) {
 		this.x = x;
 		this.y = y;
 		this.w = w;
 		this.h = h;
-		this.center = new Point(
-			this.x + Math.round(this.w / 2),
-			this.y + Math.round(this.h / 2)
-		);
-	}
-
-	paint() {
-		drawRect('#888', this.x, this.y, this.w, this.h);
-		ctx.font = '40px serif';
-		ctx.fillStyle = 'rgb(0,163,255)';
-		ctx.fillText(this.index.toString(), (this.x + this.w * .5) * cellSize, (this.y + this.h * .5) * cellSize);
-	}
-
-	drawPath(point) {
-		const xa = this.center.x;
-		const ya = this.center.y;
-		const xb = point.x;
-		const yb = point.y;
-
-		const c = "rgba(229,0,255,0.53)";
-		if (xa === xb) {
-			drawRect(c, xa, ya, 1, Math.abs(ya - yb));
-		} else {
-			drawRect(c, xa, ya, Math.abs(xa - xb), 1)
-		}
-	}
-}
-
-class RoomContainer extends Room {
-	constructor(x, y, w, h) {
-		super(x, y, w, h);
-		this.room = undefined
+		this.cx = this.x + Math.round(this.w / 2);
+		this.cy = this.y + Math.round(this.h / 2);
 	}
 
 	paint() {
@@ -75,6 +51,7 @@ class RoomContainer extends Room {
 			this.w * cellSize, this.h * cellSize)
 	}
 
+	/** @return {Room} */
 	growRoom() {
 		let x, y, w, h;
 		if (1) {
@@ -88,6 +65,8 @@ class RoomContainer extends Room {
 		} else {
 			this.room = new Room(this.x + 1, this.y + 1, this.w - 2, this.h - 2);
 		}
+
+		return this.room;
 	}
 }
 
@@ -143,35 +122,45 @@ const drawGrid = () => {
 };
 
 class Tree {
+
+	lchild = null;
+	rchild = null;
+
 	constructor(leaf) {
 		this.leaf = leaf;
-		this.lchild = undefined;
-		this.rchild = undefined
 	}
 
 	getLeafs() {
-		if (this.lchild === undefined && this.rchild === undefined) {
+		if (this.lchild === null && this.rchild === null) {
 			return [this.leaf];
 		} else {
-			return [].concat(this.lchild.getLeafs(), this.rchild.getLeafs());
+			return [...this.lchild.getLeafs(), ...this.rchild.getLeafs()];
 		}
 	}
 
 	paint() {
 		this.leaf.paint();
-		if (this.lchild !== undefined) {
+		if (this.lchild !== null) {
 			this.lchild.paint();
 		}
-		if (this.rchild !== undefined) {
+		if (this.rchild !== null) {
 			this.rchild.paint();
 		}
 	}
 }
 
-const drawTree = tree => {
-	if (tree.lchild !== undefined && tree.rchild !== undefined) {
-		tree.lchild.leaf.drawPath(tree.rchild.leaf.center);
+const drawPath = (a, b) => {
+	const c = "rgba(229,0,255,0.53)";
+	if (a.cx === b.cx) {
+		drawRect(c, a.cx, a.cy, 1, Math.abs(a.cy - b.cy));
+	} else {
+		drawRect(c, a.cx, a.cy, Math.abs(a.cx - b.cx), 1)
+	}
+};
 
+const drawTree = tree => {
+	if (tree.lchild !== null && tree.rchild !== null) {
+		drawPath(tree.lchild.leaf, tree.rchild.leaf);
 		drawTree(tree.lchild);
 		drawTree(tree.rchild);
 	}
@@ -181,22 +170,29 @@ const generate = () => {
 	canvas.width = cellSize * cellWidth;
 	canvas.height = cellSize * cellHeight;
 
-	const rooms = [];
 	const mainRoom = new RoomContainer(0, 0, cellWidth, cellHeight);
 	const roomTree = splitRoom(mainRoom, 3);
 	const leafs = roomTree.getLeafs();
-	for (let i = 0; i < leafs.length; i++) {
-		leafs[i].growRoom();
-		const room = leafs[i].room;
-		room.index = rooms.length;
-		rooms.push(room);
-	}
-
 	roomTree.paint();
 
-	for (let i = 0; i < rooms.length; i++) {
-		rooms[i].paint();
+	for (let i = 0; i < leafs.length; i++) {
+		const room = leafs[i].growRoom();
+		room.paint();
 	}
+
+	/*
+	 ctx.font = '40px serif';
+	 ctx.fillStyle = 'rgb(0,163,255)';
+	 ctx.fillText(this.index.toString(), (this.x + this.w * .5) * cellSize, (this.y + this.h * .5) * cellSize);
+	 */
+
+	const list = [1, 2, 3, 4, 5];
+	for (let i = 0; i < list.length - 1; i++) {
+		for (let k = i + 1; k < list.length; k++) {
+			console.log(list[i], list[k]);
+		}
+	}
+
 
 	drawTree(roomTree);
 
