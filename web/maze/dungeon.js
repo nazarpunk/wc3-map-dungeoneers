@@ -19,9 +19,9 @@ class Room {
 		this.center = new Point(this.x + this.w / 2, this.y + this.h / 2)
 	}
 
-	paint(c) {
-		c.fillStyle = "#888";
-		c.fillRect(this.x * SQUARE, this.y * SQUARE,
+	paint() {
+		ctx.fillStyle = "#888";
+		ctx.fillRect(this.x * SQUARE, this.y * SQUARE,
 			this.w * SQUARE, this.h * SQUARE)
 	}
 
@@ -41,10 +41,10 @@ class RoomContainer extends Room {
 		this.room = undefined
 	}
 
-	paint(c) {
-		c.strokeStyle = "#0F0";
-		c.lineWidth = 2;
-		c.strokeRect(this.x * SQUARE, this.y * SQUARE,
+	paint() {
+		ctx.strokeStyle = "#0F0";
+		ctx.lineWidth = 2;
+		ctx.strokeRect(this.x * SQUARE, this.y * SQUARE,
 			this.w * SQUARE, this.h * SQUARE)
 	}
 
@@ -98,7 +98,7 @@ function random_split(room) {
 
 function split_room(room, iter) {
 	const Root = new Tree(room);
-	room.paint(ctx);
+	room.paint();
 	if (iter !== 0) {
 		const sr = random_split(room);
 		Root.lchild = split_room(sr[0], iter - 1);
@@ -121,24 +121,22 @@ class Tree {
 			return [].concat(this.lchild.getLeafs(), this.rchild.getLeafs())
 	}
 
-	paint(c) {
-		this.leaf.paint(c);
+	paint() {
+		this.leaf.paint();
 		if (this.lchild !== undefined)
-			this.lchild.paint(c);
+			this.lchild.paint();
 		if (this.rchild !== undefined)
-			this.rchild.paint(c)
+			this.rchild.paint()
 	}
 }
 
 class GameMap {
-
-	constructor(width, height, c) {
-		this.c = c;
-		this.width = width;
-		this.height = height;
+	constructor() {
+		this.width = SQUARE * MAP_SIZE;
+		this.height = SQUARE * MAP_SIZE;
 		this.rooms = [];
 		const main_room = new RoomContainer(0, 0, MAP_SIZE, MAP_SIZE);
-		this.room_tree = split_room(main_room, 4);
+		this.room_tree = split_room(main_room, 2);
 		const leafs = this.room_tree.getLeafs();
 		for (let i = 0; i < leafs.length; i++) {
 			leafs[i].growRoom();
@@ -147,47 +145,41 @@ class GameMap {
 	}
 
 	clear() {
-		this.c.fillStyle = "#000";
-		this.c.fillRect(0, 0, this.width, this.height)
+		ctx.fillStyle = "#000";
+		ctx.fillRect(0, 0, this.width, this.height)
 	}
 
 	drawPaths(tree) {
 		if (tree.lchild !== undefined && tree.rchild !== undefined) {
-			tree.lchild.leaf.drawPath(this.c, tree.rchild.leaf.center);
+			tree.lchild.leaf.drawPath(ctx, tree.rchild.leaf.center);
 			this.drawPaths(tree.lchild);
 			this.drawPaths(tree.rchild)
 		}
 	}
 
 	drawGrid() {
-		const c = this.c;
-		c.beginPath();
-		c.strokeStyle = "rgba(255,255,255,0.4)";
-		c.lineWidth = 0.5;
+		ctx.beginPath();
+		ctx.strokeStyle = "rgba(255,255,255,0.4)";
+		ctx.lineWidth = 0.5;
 		for (let i = 0; i < MAP_SIZE; i++) {
-			c.moveTo(i * SQUARE, 0);
-			c.lineTo(i * SQUARE, MAP_SIZE * SQUARE);
-			c.moveTo(0, i * SQUARE);
-			c.lineTo(MAP_SIZE * SQUARE, i * SQUARE)
+			ctx.moveTo(i * SQUARE, 0);
+			ctx.lineTo(i * SQUARE, MAP_SIZE * SQUARE);
+			ctx.moveTo(0, i * SQUARE);
+			ctx.lineTo(MAP_SIZE * SQUARE, i * SQUARE)
 		}
-		c.stroke();
-		c.closePath()
-	}
-
-	drawContainers() {
-		this.room_tree.paint(this.c)
-	}
-
-	drawRooms() {
-		for (let i = 0; i < this.rooms.length; i++) {
-			this.rooms[i].paint(this.c)
-		}
+		ctx.stroke();
+		ctx.closePath()
 	}
 
 	paint() {
 		this.clear();
-		this.drawContainers();
-		this.drawRooms();
+		this.room_tree.paint();
+
+		for (let i = 0; i < this.rooms.length; i++) {
+			this.rooms[i].paint()
+		}
+
+
 		this.drawPaths(this.room_tree);
 		this.drawGrid()
 	}
@@ -199,8 +191,7 @@ const initMap = seed => {
 		document.getElementById('seed').value = SEED;
 		SQUARE = 400 / MAP_SIZE;
 		Math.seedrandom(SEED);
-		let map = new GameMap(SQUARE * MAP_SIZE, SQUARE * MAP_SIZE, ctx);
-		map.paint();
+		(new GameMap()).paint();
 	} catch (exception) {
 		ctx.fillStyle = "#000";
 		ctx.fillRect(0, 0, 400, 400)
