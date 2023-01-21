@@ -1,12 +1,17 @@
 <html lang="ru">
 <head>
 	<title>Dungeon generation by BSP playground</title>
+	<style>
+		:root {
+			color-scheme: dark;
+		}
+	</style>
 </head>
 <body>
 <input id="seed" spellcheck="false" style="width: 290px">
 <button id="load" type="button">Load</button>
 <button id="generate" type="button">Generate new seed, and Load</button>
-<hr>
+<br><br>
 <canvas width="400" height="400" id="viewport"></canvas>
 <script src="seedrandom.js"></script>
 <script src="md5.js"></script>
