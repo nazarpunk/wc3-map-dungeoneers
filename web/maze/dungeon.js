@@ -1,7 +1,6 @@
-let SEED;
-const CellWidth = 80;
-const CellHeight = 80;
-const CellSize = 14;
+const CellWidth = 60;
+const CellHeight = 50;
+const CellSize = 20;
 
 /** @type {HTMLCanvasElement} */
 const canvas = document.getElementById('viewport');
@@ -16,6 +15,17 @@ class Point {
 	}
 }
 
+const drawRect = (color, x, y, w, h) => {
+	ctx.fillStyle = color;
+	ctx.fillRect(
+		x * CellSize,
+		y * CellSize,
+		w * CellSize,
+		h * CellSize
+	)
+};
+
+
 class Room {
 	constructor(x, y, w, h) {
 		this.x = x;
@@ -29,26 +39,20 @@ class Room {
 	}
 
 	paint() {
-		ctx.fillStyle = "#888";
-		ctx.fillRect(
-			this.x * CellSize,
-			this.y * CellSize,
-			this.w * CellSize,
-			this.h * CellSize
-		)
+		drawRect('#888', this.x, this.y, this.w, this.h);
 	}
 
 	drawPath(point) {
-		const xa = this.center.x * CellSize;
-		const ya = this.center.y * CellSize;
-		const xb = point.x * CellSize;
-		const yb = point.y * CellSize;
+		const xa = this.center.x;
+		const ya = this.center.y;
+		const xb = point.x;
+		const yb = point.y;
 
-		ctx.fillStyle = "rgba(229,0,255,0.53)";
+		const c = "rgba(229,0,255,0.53)";
 		if (xa === xb) {
-			ctx.fillRect(xa, ya, CellSize, Math.abs(ya - yb))
+			drawRect(c, xa, ya, 1, Math.abs(ya - yb));
 		} else {
-			ctx.fillRect(xa, ya, Math.abs(xa - xb), CellSize)
+			drawRect(c, xa, ya, Math.abs(xa - xb), 1)
 		}
 	}
 }
@@ -85,8 +89,9 @@ class RoomContainer extends Room {
 
 function randomSplit(room) {
 	let r1, r2;
-	if (random(0, 1) === 0) {
-		// Vertical
+	const vertical = random(0, 1) === 0;
+
+	if (vertical) {
 		r1 = new RoomContainer(room.x, room.y, random(1, room.w), room.h);
 		r2 = new RoomContainer(room.x + r1.w, room.y, room.w - r1.w, room.h);
 
@@ -94,7 +99,6 @@ function randomSplit(room) {
 			return randomSplit(room)
 		}
 	} else {
-		// Horizontal
 		r1 = new RoomContainer(room.x, room.y, room.w, random(1, room.h));
 		r2 = new RoomContainer(room.x, room.y + r1.h, room.w, room.h - r1.h);
 
@@ -167,17 +171,12 @@ class GameMap {
 		canvas.height = this.height;
 		this.rooms = [];
 		const mainRoom = new RoomContainer(0, 0, CellWidth, CellHeight);
-		this.roomTree = splitRoom(mainRoom, 4);
+		this.roomTree = splitRoom(mainRoom, 2);
 		const leafs = this.roomTree.getLeafs();
 		for (let i = 0; i < leafs.length; i++) {
 			leafs[i].growRoom();
 			this.rooms.push(leafs[i].room)
 		}
-	}
-
-	clear() {
-		ctx.fillStyle = "#000";
-		ctx.fillRect(0, 0, this.width, this.height);
 	}
 
 	drawPaths(tree) {
@@ -190,7 +189,6 @@ class GameMap {
 	}
 
 	paint() {
-		this.clear();
 		this.roomTree.paint();
 
 		for (let i = 0; i < this.rooms.length; i++) {
@@ -198,31 +196,19 @@ class GameMap {
 		}
 
 		this.drawPaths(this.roomTree);
-		drawGrid()
+		drawGrid();
 	}
 }
 
-const initMap = seed => {
-	try {
-		SEED = seed ?? CryptoJS.MD5(`${new Date().getTime()}`).toString();
-		document.getElementById('seed').value = SEED;
-		Math.seedrandom(SEED);
-		(new GameMap()).paint();
-	} catch (exception) {
-		ctx.fillStyle = "#000";
-		ctx.fillRect(0, 0, 400, 400)
-	}
+const generate = () => {
+	(new GameMap()).paint();
 };
 
-initMap();
+generate();
 
 document.getElementById('generate').addEventListener('click', e => {
 	e.preventDefault();
-	initMap()
-});
-document.getElementById('load').addEventListener('click', e => {
-	e.preventDefault();
-	initMap(document.getElementById('seed').value)
+	generate()
 });
 
 export {};
