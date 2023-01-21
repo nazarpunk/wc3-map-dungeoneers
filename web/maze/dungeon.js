@@ -1,6 +1,6 @@
-const CellWidth = 60;
-const CellHeight = 50;
-const CellSize = 20;
+const cellWidth = 60;
+const cellHeight = 50;
+const cellSize = 20;
 
 /** @type {HTMLCanvasElement} */
 const canvas = document.getElementById('viewport');
@@ -18,15 +18,17 @@ class Point {
 const drawRect = (color, x, y, w, h) => {
 	ctx.fillStyle = color;
 	ctx.fillRect(
-		x * CellSize,
-		y * CellSize,
-		w * CellSize,
-		h * CellSize
+		x * cellSize,
+		y * cellSize,
+		w * cellSize,
+		h * cellSize
 	)
 };
 
 
 class Room {
+	index = 0;
+
 	constructor(x, y, w, h) {
 		this.x = x;
 		this.y = y;
@@ -40,6 +42,9 @@ class Room {
 
 	paint() {
 		drawRect('#888', this.x, this.y, this.w, this.h);
+		ctx.font = '40px serif';
+		ctx.fillStyle = 'rgb(0,163,255)';
+		ctx.fillText(this.index.toString(), (this.x + this.w * .5) * cellSize, (this.y + this.h * .5) * cellSize);
 	}
 
 	drawPath(point) {
@@ -66,8 +71,8 @@ class RoomContainer extends Room {
 	paint() {
 		ctx.strokeStyle = "#0F0";
 		ctx.lineWidth = 1;
-		ctx.strokeRect(this.x * CellSize, this.y * CellSize,
-			this.w * CellSize, this.h * CellSize)
+		ctx.strokeRect(this.x * cellSize, this.y * cellSize,
+			this.w * cellSize, this.h * cellSize)
 	}
 
 	growRoom() {
@@ -87,7 +92,7 @@ class RoomContainer extends Room {
 }
 
 
-function randomSplit(room) {
+const randomSplit = room => {
 	let r1, r2;
 	const vertical = random(0, 1) === 0;
 
@@ -107,31 +112,31 @@ function randomSplit(room) {
 		}
 	}
 	return [r1, r2]
-}
+};
 
-function splitRoom(room, iter) {
+const splitRoom = (room, i) => {
 	const Root = new Tree(room);
 	room.paint();
-	if (iter !== 0) {
+	if (i !== 0) {
 		const sr = randomSplit(room);
-		Root.lchild = splitRoom(sr[0], iter - 1);
-		Root.rchild = splitRoom(sr[1], iter - 1)
+		Root.lchild = splitRoom(sr[0], i - 1);
+		Root.rchild = splitRoom(sr[1], i - 1)
 	}
 	return Root
-}
+};
 
 const drawGrid = () => {
 	ctx.beginPath();
 	ctx.strokeStyle = "rgba(255,255,255,0.4)";
 	ctx.lineWidth = 0.5;
 
-	for (let i = 0; i < CellWidth; i++) {
-		ctx.moveTo(i * CellSize, 0);
-		ctx.lineTo(i * CellSize, CellHeight * CellSize);
+	for (let i = 0; i < cellWidth; i++) {
+		ctx.moveTo(i * cellSize, 0);
+		ctx.lineTo(i * cellSize, cellHeight * cellSize);
 	}
-	for (let i = 0; i < CellHeight; i++) {
-		ctx.moveTo(0, i * CellSize);
-		ctx.lineTo(CellWidth * CellSize, i * CellSize)
+	for (let i = 0; i < cellHeight; i++) {
+		ctx.moveTo(0, i * cellSize);
+		ctx.lineTo(cellWidth * cellSize, i * cellSize)
 	}
 	ctx.stroke();
 	ctx.closePath();
@@ -163,45 +168,39 @@ class Tree {
 	}
 }
 
-class GameMap {
-	constructor() {
-		this.width = CellSize * CellWidth;
-		this.height = CellSize * CellHeight;
-		canvas.width = this.width;
-		canvas.height = this.height;
-		this.rooms = [];
-		const mainRoom = new RoomContainer(0, 0, CellWidth, CellHeight);
-		this.roomTree = splitRoom(mainRoom, 2);
-		const leafs = this.roomTree.getLeafs();
-		for (let i = 0; i < leafs.length; i++) {
-			leafs[i].growRoom();
-			this.rooms.push(leafs[i].room)
-		}
+const drawTree = tree => {
+	if (tree.lchild !== undefined && tree.rchild !== undefined) {
+		tree.lchild.leaf.drawPath(tree.rchild.leaf.center);
+
+		drawTree(tree.lchild);
+		drawTree(tree.rchild);
 	}
-
-	drawPaths(tree) {
-		if (tree.lchild !== undefined && tree.rchild !== undefined) {
-			tree.lchild.leaf.drawPath(tree.rchild.leaf.center);
-
-			this.drawPaths(tree.lchild);
-			this.drawPaths(tree.rchild);
-		}
-	}
-
-	paint() {
-		this.roomTree.paint();
-
-		for (let i = 0; i < this.rooms.length; i++) {
-			this.rooms[i].paint()
-		}
-
-		this.drawPaths(this.roomTree);
-		drawGrid();
-	}
-}
+};
 
 const generate = () => {
-	(new GameMap()).paint();
+	canvas.width = cellSize * cellWidth;
+	canvas.height = cellSize * cellHeight;
+
+	const rooms = [];
+	const mainRoom = new RoomContainer(0, 0, cellWidth, cellHeight);
+	const roomTree = splitRoom(mainRoom, 3);
+	const leafs = roomTree.getLeafs();
+	for (let i = 0; i < leafs.length; i++) {
+		leafs[i].growRoom();
+		const room = leafs[i].room;
+		room.index = rooms.length;
+		rooms.push(room);
+	}
+
+	roomTree.paint();
+
+	for (let i = 0; i < rooms.length; i++) {
+		rooms[i].paint();
+	}
+
+	drawTree(roomTree);
+
+	drawGrid();
 };
 
 generate();
