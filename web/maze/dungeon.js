@@ -22,7 +22,10 @@ class Room {
 		this.y = y;
 		this.w = w;
 		this.h = h;
-		this.center = new Point(this.x + this.w / 2, this.y + this.h / 2)
+		this.center = new Point(
+			this.x + Math.round(this.w / 2),
+			this.y + Math.round(this.h / 2)
+		);
 	}
 
 	paint() {
@@ -35,13 +38,18 @@ class Room {
 		)
 	}
 
-	drawPath(c, point) {
-		c.beginPath();
-		c.lineWidth = CellSize;
-		c.strokeStyle = "#888";
-		c.moveTo(this.center.x * CellSize, this.center.y * CellSize);
-		c.lineTo(point.x * CellSize, point.y * CellSize);
-		c.stroke()
+	drawPath(point) {
+		const xa = this.center.x * CellSize;
+		const ya = this.center.y * CellSize;
+		const xb = point.x * CellSize;
+		const yb = point.y * CellSize;
+
+		ctx.fillStyle = "rgba(229,0,255,0.53)";
+		if (xa === xb) {
+			ctx.fillRect(xa, ya, CellSize, Math.abs(ya - yb))
+		} else {
+			ctx.fillRect(xa, ya, Math.abs(xa - xb), CellSize)
+		}
 	}
 }
 
@@ -53,20 +61,20 @@ class RoomContainer extends Room {
 
 	paint() {
 		ctx.strokeStyle = "#0F0";
-		ctx.lineWidth = 2;
+		ctx.lineWidth = 1;
 		ctx.strokeRect(this.x * CellSize, this.y * CellSize,
 			this.w * CellSize, this.h * CellSize)
 	}
 
 	growRoom() {
 		let x, y, w, h;
-		if (0) {
-			x = this.x + random(0, Math.floor(this.w / 3));
-			y = this.y + random(0, Math.floor(this.h / 3));
+		if (1) {
+			x = this.x + random(1, Math.floor(this.w / 3));
+			y = this.y + random(1, Math.floor(this.h / 3));
 			w = this.w - (x - this.x);
 			h = this.h - (y - this.y);
-			w -= random(0, w / 3);
-			h -= random(0, h / 3);
+			w -= random(1, w / 3);
+			h -= random(1, h / 3);
 			this.room = new Room(x, y, w, h);
 		} else {
 			this.room = new Room(this.x + 1, this.y + 1, this.w - 2, this.h - 2);
@@ -93,7 +101,6 @@ function randomSplit(room) {
 		if (r1.h / r1.w < .45 || r2.h / r2.w < .45) {
 			return randomSplit(room)
 		}
-
 	}
 	return [r1, r2]
 }
@@ -160,7 +167,7 @@ class GameMap {
 		canvas.height = this.height;
 		this.rooms = [];
 		const mainRoom = new RoomContainer(0, 0, CellWidth, CellHeight);
-		this.roomTree = splitRoom(mainRoom, 2);
+		this.roomTree = splitRoom(mainRoom, 4);
 		const leafs = this.roomTree.getLeafs();
 		for (let i = 0; i < leafs.length; i++) {
 			leafs[i].growRoom();
@@ -175,7 +182,8 @@ class GameMap {
 
 	drawPaths(tree) {
 		if (tree.lchild !== undefined && tree.rchild !== undefined) {
-			tree.lchild.leaf.drawPath(ctx, tree.rchild.leaf.center);
+			tree.lchild.leaf.drawPath(tree.rchild.leaf.center);
+
 			this.drawPaths(tree.lchild);
 			this.drawPaths(tree.rchild);
 		}
