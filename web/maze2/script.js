@@ -14,6 +14,14 @@ class Random {
 	}
 }
 
+const splitMod = (width, height) => {
+	if (width > 2.5 * height ||
+		height > 2.5 * width)
+		return 1.7;
+	else
+		return 1.0;
+};
+
 const flatLeafBSP = tree => {
 	const flat = [];
 	const stack = [];
@@ -72,8 +80,9 @@ const adjacentBSP = (left, right) => {
 const connectBSP = bsp => {
 	const stack = [];
 
-	if (bsp.connections === undefined)
+	if (bsp.connections === undefined) {
 		bsp.connections = [];
+	}
 
 	stack.push(bsp.tree);
 	while (stack.length > 0) {
@@ -86,8 +95,9 @@ const connectBSP = bsp => {
 		stack.push(room.right);
 
 		const edge = adjacentBSP(room.left, room.right);
-		if (edge !== undefined)
+		if (edge !== undefined) {
 			bsp.connections.push(edge);
+		}
 	}
 };
 
@@ -146,7 +156,7 @@ const generateBSP = function (bsp) {
 			continue;
 		}
 
-		split = bsp.splitChance * bsp.splitMod(room.bounds.width, room.bounds.height);
+		split = bsp.splitChance * splitMod(room.bounds.width, room.bounds.height);
 
 		if (bsp.rand.next() > split && room.depth >= bsp.minDepth)
 			continue;
@@ -183,7 +193,7 @@ const generateBSP = function (bsp) {
 				depth: room.depth + 1
 			};
 		} else {
-			height = (bsp.rand.next() * 2 - 1) * (room.bounds.height - this.roomSize * 2) * 0.5;
+			height = (bsp.rand.next() * 2 - 1) * (room.bounds.height - bsp.roomSize * 2) * 0.5;
 			height = room.bounds.height * 0.5 + (height | 0);
 
 			room.left = {
@@ -218,21 +228,37 @@ const generateBSP = function (bsp) {
 	}
 };
 
-
-const defaultsBSP = {
-	tiles: {
+class BSP {
+	width;
+	height;
+	roomSize = 4;
+	minDepth = 4;
+	splitChance = .35;
+	seed;
+	map = [];
+	connections = [];
+	tree = undefined;
+	tiles = {
 		EMPTY: 0,
 		WALL: 1,
 		FLOOR: 2
-	},
-	splitMod: function (width, height) {
-		if (width > 2.5 * height ||
-			height > 2.5 * width)
-			return 1.7;
-		else
-			return 1.0;
-	},
-	splitDir: function (width, height) {
+	};
+
+	constructor({
+		width = 100,
+		height = 100,
+		roomSize = 4,
+		seed = Date.now(),
+	} = {}) {
+		this.width = width;
+		this.height = height;
+		this.roomSize = roomSize;
+		this.seed = seed;
+		this.rand = new Random(this.seed);
+		this.mapDef = this.tiles;
+	}
+
+	splitDir(width, height) {
 		if (width >= 2.5 * height ||
 			height < this.roomSize * 2)
 			return 0.75;
@@ -241,34 +267,18 @@ const defaultsBSP = {
 			return 0.25;
 		else
 			return this.rand.next();
-	},
-	hallPainter: function (left, right) {
-		let k;
-		let len;
-		let pos;
-		let lMax;
-		let lMin;
-		let y;
-		let x;
-		let diff;
-		let mid;
-		let pointR;
-		let pointL;
+	}
+
+	hallPainter(left, right) {
+		let diff, mid;
+
 		if (left.bounds.x + left.bounds.width === right.bounds.x) {
-			// ==============
 			// Left/right
-			// ==============
 			if (left.size.y + left.size.height - 3 < right.size.y ||
 				right.size.y + right.size.height - 3 < left.size.y) {
-				// ------------
 				// Z Corridor
-				// ------------
-
-				pointL = left.size.y + 1 + (this.rand.next() * (left.size.height - 2) | 0);
-				pointR = right.size.y + 1 + (this.rand.next() * (right.size.height - 2) | 0);
-
-				diff = 0;
-				mid = 0;
+				const pointL = left.size.y + 1 + (this.rand.next() * (left.size.height - 2) | 0);
+				const pointR = right.size.y + 1 + (this.rand.next() * (right.size.height - 2) | 0);
 
 				if (left.bounds.height >= right.bounds.height) {
 					diff = left.bounds.x + left.bounds.width - 1 - (left.size.x + left.size.width);
@@ -277,9 +287,7 @@ const defaultsBSP = {
 					diff = right.size.x - 1 - (right.bounds.x + 1);
 					mid = (this.rand.next() * diff | 0) + right.bounds.x;
 				}
-
-				y = 0;
-				x = 0;
+				let x;
 
 				for (x = left.size.x + left.size.width - 1; x <= mid; x++) {
 					if (this.map[(pointL - 1) * this.width + x] !== this.tiles.FLOOR)
@@ -289,10 +297,10 @@ const defaultsBSP = {
 						this.map[(pointL + 1) * this.width + x] = this.tiles.WALL;
 				}
 
-				lMin = Math.min(pointL - 1, pointR - 1);
-				lMax = Math.max(pointL + 1, pointR + 1);
+				const lMin = Math.min(pointL - 1, pointR - 1);
+				const lMax = Math.max(pointL + 1, pointR + 1);
 
-				for (y = lMin; y <= lMax; y++) {
+				for (let y = lMin; y <= lMax; y++) {
 					if (this.map[y * this.width + x - 1] !== this.tiles.FLOOR)
 						this.map[y * this.width + x - 1] = this.tiles.WALL;
 
@@ -316,12 +324,12 @@ const defaultsBSP = {
 				const t = Math.min(left.size.y + left.size.height, right.size.y + right.size.height);
 				const b = Math.max(left.size.y, right.size.y);
 
-				diff = t - 1 - (b + 1);
+				let diff = t - 1 - (b + 1);
 				diff = this.rand.next() * diff | 0;
-				pos = b + diff + 1;
+				const pos = b + diff + 1;
 
-				len = right.size.x - (left.size.x + left.size.width - 1);
-				for (k = 0; k <= len; k++) {
+				let len = right.size.x - (left.size.x + left.size.width - 1);
+				for (let k = 0; k <= len; k++) {
 					const _x = left.size.x + left.size.width - 1 + k;
 					this.map[(pos - 1) * this.width + _x] = this.tiles.WALL;
 					this.map[pos * this.width + _x] = this.tiles.FLOOR;
@@ -329,20 +337,12 @@ const defaultsBSP = {
 				}
 			}
 		} else {
-			// ==============
 			// Top/Bottom
-			// ==============
 			if (left.size.x + left.size.width - 3 < right.size.x ||
 				right.size.x + right.size.width - 3 < left.size.x) {
-				// ------------
 				// Z Corridor
-				// ------------
-
-				pointL = left.size.x + 1 + (this.rand.next() * (left.size.width - 2) | 0);
-				pointR = right.size.x + 1 + (this.rand.next() * (right.size.width - 2) | 0);
-
-				diff = 0;
-				mid = 0;
+				const pointL = left.size.x + 1 + (this.rand.next() * (left.size.width - 2) | 0);
+				const pointR = right.size.x + 1 + (this.rand.next() * (right.size.width - 2) | 0);
 
 				if (left.bounds.width >= right.bounds.width) {
 					diff = (left.bounds.y + left.bounds.height) - (left.size.y + left.size.height);
@@ -352,8 +352,7 @@ const defaultsBSP = {
 					mid = (this.rand.next() * diff | 0) + right.bounds.y;
 				}
 
-				y = 0;
-				x = 0;
+				let y;
 
 				for (y = left.size.y + left.size.height - 1; y <= mid; y++) {
 					if (this.map[y * this.width + pointL - 1] !== this.tiles.FLOOR)
@@ -363,10 +362,10 @@ const defaultsBSP = {
 						this.map[y * this.width + pointL + 1] = this.tiles.WALL;
 				}
 
-				lMin = Math.min(pointL - 1, pointR - 1);
-				lMax = Math.max(pointL + 1, pointR + 1);
+				const lMin = Math.min(pointL - 1, pointR - 1);
+				const lMax = Math.max(pointL + 1, pointR + 1);
 
-				for (x = lMin; x <= lMax; x++) {
+				for (let x = lMin; x <= lMax; x++) {
 					if (this.map[(y - 1) * this.width + x] !== this.tiles.FLOOR)
 						this.map[(y - 1) * this.width + x] = this.tiles.WALL;
 
@@ -390,12 +389,12 @@ const defaultsBSP = {
 				const r = Math.min(left.size.x + left.size.width, right.size.x + right.size.width);
 				const l = Math.max(left.size.x, right.size.x);
 
-				diff = r - 1 - (l + 1);
+				let diff = r - 1 - (l + 1);
 				diff = this.rand.next() * diff | 0;
-				pos = l + diff + 1;
+				const pos = l + diff + 1;
 
-				len = right.size.y - (left.size.y + left.size.height - 1);
-				for (k = 0; k <= len; k++) {
+				let len = right.size.y - (left.size.y + left.size.height - 1);
+				for (let k = 0; k <= len; k++) {
 					const _y = left.size.y + left.size.height - 1 + k;
 					this.map[_y * this.width + pos - 1] = this.tiles.WALL;
 					this.map[_y * this.width + pos] = this.tiles.FLOOR;
@@ -403,8 +402,9 @@ const defaultsBSP = {
 				}
 			}
 		}
-	},
-	roomPainter: function (room) {
+	}
+
+	roomPainter(room) {
 		const w = this.roomSize + this.rand.next() * (room.bounds.width - this.roomSize - 2) | 0;
 		const h = this.roomSize + this.rand.next() * (room.bounds.height - this.roomSize - 2) | 0;
 		const x = room.bounds.x + 1 + (room.bounds.width - w - 1) * this.rand.next() | 0;
@@ -413,10 +413,11 @@ const defaultsBSP = {
 		for (let _y = y; _y < h + y; _y++) {
 			for (let _x = x; _x < w + x; _x++) {
 				if (_x === x || _x === w + x - 1 ||
-					_y === y || _y === h + y - 1)
+					_y === y || _y === h + y - 1) {
 					this.map[_y * this.width + _x] = this.tiles.WALL;
-				else
+				} else {
 					this.map[_y * this.width + _x] = this.tiles.FLOOR;
+				}
 			}
 		}
 
@@ -427,63 +428,18 @@ const defaultsBSP = {
 			height: h
 		};
 	}
-};
+}
 
-const BSPold = function (options) {
-	const obj = {
-		width: 100,
-		height: 100,
-		roomSize: 4,
-		minDepth: 4,
-		splitChance: 0.35,
-		seed: Date.now(),
-		roomPainter: undefined,
-		hallPainter: undefined,
-		splitMod: undefined,
-		splitDir: undefined,
-		tiles: undefined
-	};
-
-	for (let prop in defaultsBSP) {
-		if (obj.hasOwnProperty(prop) && obj[prop] === undefined) {
-			obj[prop] = defaultsBSP[prop];
-		}
-	}
-
-	for (let prop in options) {
-		if (obj.hasOwnProperty(prop)) {
-			obj[prop] = options[prop];
-		}
-	}
-
-	obj.map = [];
-	obj.connections = [];
-	obj.tree = undefined;
-	obj.graph = undefined;
-	obj.rand = new Random(obj.seed);
-
-	generateBSP(obj);
-	connectBSP(obj);
-	paintBSP(obj);
-
-	return {
-		width: obj.width,
-		height: obj.height,
-		map: obj.map,
-		tree: obj.tree,
-		connections: obj.connections,
-		mapDef: obj.tiles
-	}
-};
-
-// Testing BSP Generation
-// =============================
-const bsp = BSPold({
+const bsp = new BSP({
 	width: window.innerWidth,
 	height: window.innerHeight,
 	roomSize: 10,
 	seed: Date.now()
 });
+
+generateBSP(bsp);
+connectBSP(bsp);
+paintBSP(bsp);
 
 const canvas = document.createElement('canvas');
 canvas.width = bsp.width;
@@ -534,3 +490,4 @@ canvas.style.top = '0';
 canvas.style.left = '0';
 document.body.appendChild(canvas);
 
+export {}
