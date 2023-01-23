@@ -1,5 +1,3 @@
-
-
 class Random {
 	constructor(seed) {
 		this.m_w = seed;
@@ -221,7 +219,6 @@ const generateBSP = function (bsp) {
 };
 
 
-
 const defaultsBSP = {
 	tiles: {
 		EMPTY: 0,
@@ -432,7 +429,7 @@ const defaultsBSP = {
 	}
 };
 
-const BSP = function (options) {
+const BSPold = function (options) {
 	const obj = {
 		width: 100,
 		height: 100,
@@ -481,7 +478,7 @@ const BSP = function (options) {
 
 // Testing BSP Generation
 // =============================
-const bsp = BSP({
+const bsp = BSPold({
 	width: window.innerWidth,
 	height: window.innerHeight,
 	roomSize: 10,
@@ -520,7 +517,7 @@ for (let y = 0; y < bsp.height; y++) {
 	}
 }
 
-ctx.strokeStyle = 'red';
+ctx.strokeStyle = 'rgb(255,0,0)';
 ctx.beginPath();
 for (let i = 0; i < bsp.connections.length; i++) {
 	item = bsp.connections[i];
