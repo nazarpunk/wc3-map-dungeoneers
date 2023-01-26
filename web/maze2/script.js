@@ -33,7 +33,7 @@ const tiles = {
 };
 const map = [];
 const connections = [];
-let tree = null;
+let tree;
 
 const flatLeaf = tree => {
 	const flat = [];
@@ -88,46 +88,6 @@ const adjacentBSP = (left, right) => {
 	}
 
 	return null;
-};
-
-const paint = () => {
-	for (let i = 0; i < dungeonWidth * dungeonHeight; i++) {
-		map[i] = tiles.EMPTY;
-	}
-
-	const rooms = flatLeaf(tree);
-
-	for (let i = 0; i < rooms.length; i++) {
-		const room = rooms[i];
-
-		const w = dungeonRoomSize + rand.next() * (room.bounds.w - dungeonRoomSize - 2) | 0;
-		const h = dungeonRoomSize + rand.next() * (room.bounds.h - dungeonRoomSize - 2) | 0;
-		const x = room.bounds.x + 1 + (room.bounds.w - w - 1) * rand.next() | 0;
-		const y = room.bounds.y + 1 + (room.bounds.h - h - 1) * rand.next() | 0;
-
-		for (let _y = y; _y < h + y; _y++) {
-			for (let _x = x; _x < w + x; _x++) {
-				if (_x === x || _x === w + x - 1 ||
-					_y === y || _y === h + y - 1) {
-					map[_y * dungeonWidth + _x] = tiles.WALL;
-				} else {
-					map[_y * dungeonWidth + _x] = tiles.FLOOR;
-				}
-			}
-		}
-
-		room.size = {
-			x: x,
-			y: y,
-			w: w,
-			h: h
-		};
-	}
-
-	for (let i = 0; i < connections.length; i++) {
-		const hall = connections[i];
-		hallPainter(hall.left, hall.right);
-	}
 };
 
 const hallPainter = (left, right) => {
@@ -403,8 +363,45 @@ while (sStack.length > 0) {
 }
 //</editor-fold>
 
+//<editor-fold desc="map">
+for (let i = 0; i < dungeonWidth * dungeonHeight; i++) {
+	map[i] = tiles.EMPTY;
+}
 
-paint();
+const rooms = flatLeaf(tree);
+
+for (let i = 0; i < rooms.length; i++) {
+	const room = rooms[i];
+
+	const w = dungeonRoomSize + rand.next() * (room.bounds.w - dungeonRoomSize - 2) | 0;
+	const h = dungeonRoomSize + rand.next() * (room.bounds.h - dungeonRoomSize - 2) | 0;
+	const x = room.bounds.x + 1 + (room.bounds.w - w - 1) * rand.next() | 0;
+	const y = room.bounds.y + 1 + (room.bounds.h - h - 1) * rand.next() | 0;
+
+	for (let _y = y; _y < h + y; _y++) {
+		for (let _x = x; _x < w + x; _x++) {
+			if (_x === x || _x === w + x - 1 ||
+				_y === y || _y === h + y - 1) {
+				map[_y * dungeonWidth + _x] = tiles.WALL;
+			} else {
+				map[_y * dungeonWidth + _x] = tiles.FLOOR;
+			}
+		}
+	}
+
+	room.size = {
+		x: x,
+		y: y,
+		w: w,
+		h: h
+	};
+}
+
+for (let i = 0; i < connections.length; i++) {
+	const hall = connections[i];
+	hallPainter(hall.left, hall.right);
+}
+//</editor-fold>
 
 //<editor-fold desc="canvas">
 const canvas = document.createElement('canvas');
