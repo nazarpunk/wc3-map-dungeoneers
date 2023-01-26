@@ -1,3 +1,5 @@
+// noinspection DuplicatedCode
+
 class Random {
 	constructor(seed) {
 		this.m_w = seed;
@@ -14,8 +16,9 @@ class Random {
 	}
 }
 
-const dungeonWidth = window.innerWidth;
-const dungeonHeight = window.innerHeight;
+const dungeonWidth = 80;
+const dungeonHeight = 60;
+const cellSize = 10;
 const dungeonRoomSize = 10;
 const rand = new Random(Date.now());
 const minDepth = 4;
@@ -31,24 +34,24 @@ let tree = null;
 
 const splitMod = (width, height) => {
 	if (width > 2.5 * height ||
-		height > 2.5 * width)
+		height > 2.5 * width) {
 		return 1.7;
-	else
-		return 1.0;
+	}
+	return 1.0;
 };
 
 const splitDir = (width, height) => {
 	if (width >= 2.5 * height ||
-		height < dungeonRoomSize * 2)
+		height < dungeonRoomSize * 2) {
 		return 0.75;
-	else if (height > 2.5 * width ||
-		width < dungeonRoomSize * 2)
+	} else if (height > 2.5 * width ||
+		width < dungeonRoomSize * 2) {
 		return 0.25;
-	else
-		return rand.next();
+	}
+	return rand.next();
 };
 
-const flatLeafBSP = tree => {
+const flatLeaf = tree => {
 	const flat = [];
 	const stack = [];
 	let current = tree;
@@ -69,8 +72,8 @@ const flatLeafBSP = tree => {
 };
 
 const adjacentBSP = (left, right) => {
-	const flatL = flatLeafBSP(left);
-	const flatR = flatLeafBSP(right);
+	const flatL = flatLeaf(left);
+	const flatR = flatLeaf(right);
 
 	let found = false;
 	for (let i = 0; i < flatL.length; i++) {
@@ -131,7 +134,7 @@ const generate = () => {
 			continue;
 		}
 
-		if (Math.min(room.bounds.width, room.bounds.height) < 250) {
+		if (Math.min(room.bounds.width, room.bounds.height) < 5) {
 			continue;
 		}
 
@@ -230,7 +233,7 @@ const paint = () => {
 		map[i] = tiles.EMPTY;
 	}
 
-	const rooms = flatLeafBSP(tree);
+	const rooms = flatLeaf(tree);
 
 	for (let i = 0; i < rooms.length; i++) {
 		const room = rooms[i];
@@ -405,21 +408,23 @@ connect();
 paint();
 
 const canvas = document.createElement('canvas');
-canvas.width = dungeonWidth;
-canvas.height = dungeonHeight;
+canvas.width = dungeonWidth * cellSize;
+canvas.height = dungeonHeight * cellSize;
 const ctx = canvas.getContext('2d');
 
-ctx.strokeStyle = 'rgba(187,215,6,0.06)';
+// draw room
+ctx.strokeStyle = 'rgba(222,255,0,0.3)';
 let item;
 for (let i = 0; i < connections.length; i++) {
 	item = connections[i];
 
-	ctx.strokeRect(item.left.bounds.x, item.left.bounds.y,
-		item.left.bounds.width, item.left.bounds.height);
-	ctx.strokeRect(item.right.bounds.x, item.right.bounds.y,
-		item.right.bounds.width, item.right.bounds.height);
+	ctx.strokeRect(item.left.bounds.x * cellSize, item.left.bounds.y * cellSize,
+		item.left.bounds.width * cellSize, item.left.bounds.height * cellSize);
+	ctx.strokeRect(item.right.bounds.x * cellSize, item.right.bounds.y * cellSize,
+		item.right.bounds.width * cellSize, item.right.bounds.height * cellSize);
 }
 
+// draw tile
 for (let y = 0; y < dungeonHeight; y++) {
 	for (let x = 0; x < dungeonWidth; x++) {
 		const id = map[y * dungeonWidth + x];
@@ -434,25 +439,43 @@ for (let y = 0; y < dungeonHeight; y++) {
 			ctx.fillStyle = 'rgba(211,44,119,0.2)';
 		}
 
-		ctx.fillRect(x, y, 1, 1);
+		ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
 	}
 }
 
+// draw connection
 ctx.strokeStyle = 'rgb(255,0,0)';
 ctx.beginPath();
 for (let i = 0; i < connections.length; i++) {
 	item = connections[i];
 
-	ctx.moveTo(item.left.size.x + item.left.size.width * 0.5,
-		item.left.size.y + item.left.size.height * 0.5);
-	ctx.lineTo(item.right.size.x + item.right.size.width * 0.5,
-		item.right.size.y + item.right.size.height * 0.5);
+	ctx.moveTo(
+		(item.left.size.x + item.left.size.width * 0.5) * cellSize,
+		(item.left.size.y + item.left.size.height * 0.5) * cellSize
+	);
+	ctx.lineTo(
+		(item.right.size.x + item.right.size.width * 0.5) * cellSize,
+		(item.right.size.y + item.right.size.height * 0.5) * cellSize
+	);
 }
 ctx.stroke();
 
-canvas.style.position = 'absolute';
-canvas.style.top = '0';
-canvas.style.left = '0';
+// draw grid
+ctx.beginPath();
+ctx.strokeStyle = "rgba(255,255,255,0.4)";
+ctx.lineWidth = 0.5;
+
+for (let i = 0; i <= dungeonWidth; i++) {
+	ctx.moveTo(i * cellSize, 0);
+	ctx.lineTo(i * cellSize, dungeonHeight * cellSize);
+}
+for (let i = 0; i <= dungeonHeight; i++) {
+	ctx.moveTo(0, i * cellSize);
+	ctx.lineTo(dungeonWidth * cellSize, i * cellSize)
+}
+ctx.stroke();
+ctx.closePath();
+
 document.body.appendChild(canvas);
 
 export {}

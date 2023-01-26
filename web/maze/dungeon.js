@@ -1,5 +1,5 @@
-const cellWidth = 60;
-const cellHeight = 50;
+const dungeonWidth = 60;
+const dungeonHeight = 50;
 const cellSize = 20;
 
 /** @type {HTMLCanvasElement} */
@@ -104,23 +104,6 @@ const splitRoom = (room, i) => {
 	return Root
 };
 
-const drawGrid = () => {
-	ctx.beginPath();
-	ctx.strokeStyle = "rgba(255,255,255,0.4)";
-	ctx.lineWidth = 0.5;
-
-	for (let i = 0; i < cellWidth; i++) {
-		ctx.moveTo(i * cellSize, 0);
-		ctx.lineTo(i * cellSize, cellHeight * cellSize);
-	}
-	for (let i = 0; i < cellHeight; i++) {
-		ctx.moveTo(0, i * cellSize);
-		ctx.lineTo(cellWidth * cellSize, i * cellSize)
-	}
-	ctx.stroke();
-	ctx.closePath();
-};
-
 class Tree {
 
 	lchild = null;
@@ -167,10 +150,10 @@ const drawTree = tree => {
 };
 
 const generate = () => {
-	canvas.width = cellSize * cellWidth;
-	canvas.height = cellSize * cellHeight;
+	canvas.width = cellSize * dungeonWidth;
+	canvas.height = cellSize * dungeonHeight;
 
-	const mainRoom = new RoomContainer(0, 0, cellWidth, cellHeight);
+	const mainRoom = new RoomContainer(0, 0, dungeonWidth, dungeonHeight);
 	const roomTree = splitRoom(mainRoom, 3);
 	const leafs = roomTree.getLeafs();
 	roomTree.paint();
@@ -196,7 +179,21 @@ const generate = () => {
 
 	drawTree(roomTree);
 
-	drawGrid();
+	// draw grid
+	ctx.beginPath();
+	ctx.strokeStyle = "rgba(255,255,255,0.4)";
+	ctx.lineWidth = 0.5;
+
+	for (let i = 0; i < dungeonWidth; i++) {
+		ctx.moveTo(i * cellSize, 0);
+		ctx.lineTo(i * cellSize, dungeonHeight * cellSize);
+	}
+	for (let i = 0; i < dungeonHeight; i++) {
+		ctx.moveTo(0, i * cellSize);
+		ctx.lineTo(dungeonWidth * cellSize, i * cellSize)
+	}
+	ctx.stroke();
+	ctx.closePath();
 };
 
 generate();
