@@ -16,11 +16,14 @@ class Random {
 	}
 }
 
-const dungeonWidth = 80;
-const dungeonHeight = 60;
-const cellSize = 10;
+const dungeonWidth = 220;
+const dungeonHeight = 180;
+const cellSize = 6;
 const dungeonRoomSize = 10;
-const rand = new Random(Date.now());
+const seed = Date.now();
+//const seed = 1674773190194;
+//console.log(seed);
+const rand = new Random(seed);
 const minDepth = 4;
 const splitChance = .35;
 const tiles = {
@@ -31,25 +34,6 @@ const tiles = {
 const map = [];
 const connections = [];
 let tree = null;
-
-const splitMod = (width, height) => {
-	if (width > 2.5 * height ||
-		height > 2.5 * width) {
-		return 1.7;
-	}
-	return 1.0;
-};
-
-const splitDir = (width, height) => {
-	if (width >= 2.5 * height ||
-		height < dungeonRoomSize * 2) {
-		return 0.75;
-	} else if (height > 2.5 * width ||
-		width < dungeonRoomSize * 2) {
-		return 0.25;
-	}
-	return rand.next();
-};
 
 const flatLeaf = tree => {
 	const flat = [];
@@ -106,128 +90,6 @@ const adjacentBSP = (left, right) => {
 	return null;
 };
 
-const generate = () => {
-	const stack = [{
-		bounds: {
-			x: 0,
-			y: 0,
-			width: dungeonWidth,
-			height: dungeonHeight
-		},
-		left: null,
-		right: null,
-		parent: null,
-		depth: 0
-	}];
-
-	tree = stack[0];
-	let dir = 0;
-	let room = null;
-	let width = 0;
-	let height = 0;
-
-	while (stack.length > 0) {
-		room = stack.pop();
-
-		if (room.bounds.width < dungeonRoomSize * 2 &&
-			room.bounds.height < dungeonRoomSize * 2) {
-			continue;
-		}
-
-		if (Math.min(room.bounds.width, room.bounds.height) < 5) {
-			continue;
-		}
-
-		let split = splitChance * splitMod(room.bounds.width, room.bounds.height);
-
-		if (rand.next() > split && room.depth >= minDepth) {
-			continue;
-		}
-
-		dir = splitDir(room.bounds.width, room.bounds.height);
-
-		if (dir > 0.5) {
-			width = (rand.next() * 2 - 1) * (room.bounds.width - dungeonRoomSize * 2) * 0.5;
-			width = room.bounds.width * 0.5 + (width | 0);
-
-			room.left = {
-				bounds: {
-					x: room.bounds.x,
-					y: room.bounds.y,
-					width: width,
-					height: room.bounds.height
-				},
-				left: null,
-				right: null,
-				parent: room,
-				depth: room.depth + 1
-			};
-
-			room.right = {
-				bounds: {
-					x: room.bounds.x + width,
-					y: room.bounds.y,
-					width: room.bounds.width - width,
-					height: room.bounds.height
-				},
-				left: null,
-				right: null,
-				parent: room,
-				depth: room.depth + 1
-			};
-		} else {
-			height = (rand.next() * 2 - 1) * (room.bounds.height - dungeonRoomSize * 2) * 0.5;
-			height = room.bounds.height * 0.5 + (height | 0);
-
-			room.left = {
-				bounds: {
-					x: room.bounds.x,
-					y: room.bounds.y,
-					width: room.bounds.width,
-					height: height
-				},
-				left: null,
-				right: null,
-				parent: room,
-				depth: room.depth + 1
-			};
-
-			room.right = {
-				bounds: {
-					x: room.bounds.x,
-					y: room.bounds.y + height,
-					width: room.bounds.width,
-					height: room.bounds.height - height
-				},
-				left: null,
-				right: null,
-				parent: room,
-				depth: room.depth + 1
-			};
-		}
-
-		stack.push(room.left);
-		stack.push(room.right);
-	}
-};
-const connect = () => {
-	const stack = [tree];
-	while (stack.length > 0) {
-		const room = stack.pop();
-
-		if (room === null)
-			continue;
-
-		stack.push(room.left);
-		stack.push(room.right);
-
-		const edge = adjacentBSP(room.left, room.right);
-		if (edge !== null) {
-			connections.push(edge);
-		}
-	}
-};
-
 const paint = () => {
 	for (let i = 0; i < dungeonWidth * dungeonHeight; i++) {
 		map[i] = tiles.EMPTY;
@@ -269,8 +131,6 @@ const paint = () => {
 };
 
 const hallPainter = (left, right) => {
-	let diff, mid;
-
 	if (left.bounds.x + left.bounds.width === right.bounds.x) {
 		// Left/right
 		if (left.size.y + left.size.height - 3 < right.size.y ||
@@ -279,6 +139,7 @@ const hallPainter = (left, right) => {
 			const pointL = left.size.y + 1 + (rand.next() * (left.size.height - 2) | 0);
 			const pointR = right.size.y + 1 + (rand.next() * (right.size.height - 2) | 0);
 
+			let diff, mid;
 			if (left.bounds.height >= right.bounds.height) {
 				diff = left.bounds.x + left.bounds.width - 1 - (left.size.x + left.size.width);
 				mid = (rand.next() * diff | 0) + left.size.x + left.size.width - 1;
@@ -343,6 +204,7 @@ const hallPainter = (left, right) => {
 			const pointL = left.size.x + 1 + (rand.next() * (left.size.width - 2) | 0);
 			const pointR = right.size.x + 1 + (rand.next() * (right.size.width - 2) | 0);
 
+			let diff, mid;
 			if (left.bounds.width >= right.bounds.width) {
 				diff = (left.bounds.y + left.bounds.height) - (left.size.y + left.size.height);
 				mid = (rand.next() * diff | 0) + left.size.y + left.size.height - 1;
@@ -403,25 +265,165 @@ const hallPainter = (left, right) => {
 	}
 };
 
-generate();
-connect();
+const gStack = [{
+	bounds: {
+		x: 0,
+		y: 0,
+		width: dungeonWidth,
+		height: dungeonHeight
+	},
+	left: null,
+	right: null,
+	parent: null,
+	depth: 0
+}];
+
+//<editor-fold desc="generate">
+tree = gStack[0];
+let width = 0;
+let height = 0;
+
+while (gStack.length > 0) {
+	let room = gStack.pop();
+
+	if (room.bounds.width < dungeonRoomSize * 2 &&
+		room.bounds.height < dungeonRoomSize * 2) {
+		continue;
+	}
+
+	if (Math.min(room.bounds.width, room.bounds.height) < 5) {
+		continue;
+	}
+
+	let split = splitChance;
+	if (room.bounds.width > 2.5 * room.bounds.height ||
+		room.bounds.height > 2.5 * room.bounds.width) {
+		split *= 1.7;
+	} else {
+		split *= 1;
+	}
+
+	if (rand.next() > split && room.depth >= minDepth) {
+		continue;
+	}
+
+	let dir;
+	if (room.bounds.width >= 2.5 * room.bounds.height ||
+		room.bounds.height < dungeonRoomSize * 2) {
+		dir = .75;
+	} else if (room.bounds.height > 2.5 * room.bounds.width ||
+		room.bounds.height < dungeonRoomSize * 2) {
+		dir = .25;
+	} else {
+		dir = rand.next();
+	}
+
+
+	if (dir > 0.5) {
+		width = (rand.next() * 2 - 1) * (room.bounds.width - dungeonRoomSize * 2) * 0.5;
+		width = room.bounds.width * 0.5 + (width | 0);
+
+		room.left = {
+			bounds: {
+				x: room.bounds.x,
+				y: room.bounds.y,
+				width: width,
+				height: room.bounds.height
+			},
+			left: null,
+			right: null,
+			parent: room,
+			depth: room.depth + 1
+		};
+
+		room.right = {
+			bounds: {
+				x: room.bounds.x + width,
+				y: room.bounds.y,
+				width: room.bounds.width - width,
+				height: room.bounds.height
+			},
+			left: null,
+			right: null,
+			parent: room,
+			depth: room.depth + 1
+		};
+	} else {
+		height = (rand.next() * 2 - 1) * (room.bounds.height - dungeonRoomSize * 2) * 0.5;
+		height = room.bounds.height * 0.5 + (height | 0);
+
+		room.left = {
+			bounds: {
+				x: room.bounds.x,
+				y: room.bounds.y,
+				width: room.bounds.width,
+				height: height
+			},
+			left: null,
+			right: null,
+			parent: room,
+			depth: room.depth + 1
+		};
+
+		room.right = {
+			bounds: {
+				x: room.bounds.x,
+				y: room.bounds.y + height,
+				width: room.bounds.width,
+				height: room.bounds.height - height
+			},
+			left: null,
+			right: null,
+			parent: room,
+			depth: room.depth + 1
+		};
+	}
+
+	gStack.push(room.left);
+	gStack.push(room.right);
+}
+//</editor-fold>
+
+//<editor-fold desc="connect">
+const sStack = [tree];
+while (sStack.length > 0) {
+	const room = sStack.pop();
+
+	if (room === null) {
+		continue;
+	}
+
+	sStack.push(room.left);
+	sStack.push(room.right);
+
+	const edge = adjacentBSP(room.left, room.right);
+	if (edge !== null) {
+		connections.push(edge);
+	}
+}
+//</editor-fold>
+
+
 paint();
 
+//<editor-fold desc="canvas">
 const canvas = document.createElement('canvas');
 canvas.width = dungeonWidth * cellSize;
 canvas.height = dungeonHeight * cellSize;
 const ctx = canvas.getContext('2d');
 
 // draw room
-ctx.strokeStyle = 'rgba(222,255,0,0.3)';
+ctx.strokeStyle = 'rgb(143,143,143)';
+ctx.lineWidth = .5;
 let item;
 for (let i = 0; i < connections.length; i++) {
 	item = connections[i];
 
-	ctx.strokeRect(item.left.bounds.x * cellSize, item.left.bounds.y * cellSize,
-		item.left.bounds.width * cellSize, item.left.bounds.height * cellSize);
-	ctx.strokeRect(item.right.bounds.x * cellSize, item.right.bounds.y * cellSize,
-		item.right.bounds.width * cellSize, item.right.bounds.height * cellSize);
+	const lb = item.left.bounds;
+	const rb = item.right.bounds;
+
+	ctx.strokeRect(lb.x * cellSize, lb.y * cellSize, lb.width * cellSize, lb.height * cellSize);
+	ctx.strokeRect(rb.x * cellSize, rb.y * cellSize, rb.width * cellSize, rb.height * cellSize);
 }
 
 // draw tile
@@ -434,9 +436,9 @@ for (let y = 0; y < dungeonHeight; y++) {
 		}
 
 		if (id === tiles.WALL) {
-			ctx.fillStyle = 'rgb(0,4,238)';
+			ctx.fillStyle = 'rgb(0,70,61)';
 		} else if (id === tiles.FLOOR) {
-			ctx.fillStyle = 'rgba(211,44,119,0.2)';
+			ctx.fillStyle = 'rgb(0,0,0)';
 		}
 
 		ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
@@ -477,5 +479,6 @@ ctx.stroke();
 ctx.closePath();
 
 document.body.appendChild(canvas);
+//</editor-fold>
 
 export {}
