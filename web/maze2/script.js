@@ -31,7 +31,6 @@ const tiles = {
 };
 const map = [];
 const connections = [];
-let tree;
 
 const flatLeaf = tree => {
 	const flat = [];
@@ -88,140 +87,9 @@ const adjacentBSP = (left, right) => {
 	return null;
 };
 
-const hallPainter = (left, right) => {
-	if (left.bounds.x + left.bounds.w === right.bounds.x) {
-		// Left/right
-		if (left.size.y + left.size.h - 3 < right.size.y ||
-			right.size.y + right.size.h - 3 < left.size.y) {
-			// Z Corridor
-			const pointL = left.size.y + 1 + (rand.next() * (left.size.h - 2) | 0);
-			const pointR = right.size.y + 1 + (rand.next() * (right.size.h - 2) | 0);
+//<editor-fold desc="generate">
 
-			let diff, mid;
-			if (left.bounds.h >= right.bounds.h) {
-				diff = left.bounds.x + left.bounds.w - 1 - (left.size.x + left.size.w);
-				mid = (rand.next() * diff | 0) + left.size.x + left.size.w - 1;
-			} else {
-				diff = right.size.x - 1 - (right.bounds.x + 1);
-				mid = (rand.next() * diff | 0) + right.bounds.x;
-			}
-			let x;
 
-			for (x = left.size.x + left.size.w - 1; x <= mid; x++) {
-				if (map[(pointL - 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(pointL - 1) * dungeonWidth + x] = tiles.WALL;
-				map[pointL * dungeonWidth + x] = tiles.FLOOR;
-				if (map[(pointL + 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(pointL + 1) * dungeonWidth + x] = tiles.WALL;
-			}
-
-			const lMin = Math.min(pointL - 1, pointR - 1);
-			const lMax = Math.max(pointL + 1, pointR + 1);
-
-			for (let y = lMin; y <= lMax; y++) {
-				if (map[y * dungeonWidth + x - 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + x - 1] = tiles.WALL;
-
-				if (y !== lMin && y !== lMax)
-					map[y * dungeonWidth + x] = tiles.FLOOR;
-				else if (map[y * dungeonWidth + x] !== tiles.FLOOR)
-					map[y * dungeonWidth + x] = tiles.WALL;
-
-				if (map[y * dungeonWidth + x + 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + x + 1] = tiles.WALL;
-			}
-
-			for (; x <= right.size.x; x++) {
-				if (map[(pointR - 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(pointR - 1) * dungeonWidth + x] = tiles.WALL;
-				map[pointR * dungeonWidth + x] = tiles.FLOOR;
-				if (map[(pointR + 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(pointR + 1) * dungeonWidth + x] = tiles.WALL;
-			}
-		} else {
-			const t = Math.min(left.size.y + left.size.h, right.size.y + right.size.h);
-			const b = Math.max(left.size.y, right.size.y);
-
-			let diff = t - 1 - (b + 1);
-			diff = rand.next() * diff | 0;
-			const pos = b + diff + 1;
-
-			let len = right.size.x - (left.size.x + left.size.w - 1);
-			for (let k = 0; k <= len; k++) {
-				const _x = left.size.x + left.size.w - 1 + k;
-				map[(pos - 1) * dungeonWidth + _x] = tiles.WALL;
-				map[pos * dungeonWidth + _x] = tiles.FLOOR;
-				map[(pos + 1) * dungeonWidth + _x] = tiles.WALL;
-			}
-		}
-	} else {
-		// Top/Bottom
-		if (left.size.x + left.size.w - 3 < right.size.x ||
-			right.size.x + right.size.w - 3 < left.size.x) {
-			// Z Corridor
-			const pointL = left.size.x + 1 + (rand.next() * (left.size.w - 2) | 0);
-			const pointR = right.size.x + 1 + (rand.next() * (right.size.w - 2) | 0);
-
-			let diff, mid;
-			if (left.bounds.w >= right.bounds.w) {
-				diff = (left.bounds.y + left.bounds.h) - (left.size.y + left.size.h);
-				mid = (rand.next() * diff | 0) + left.size.y + left.size.h - 1;
-			} else {
-				diff = right.size.y - 1 - (right.bounds.y + 1);
-				mid = (rand.next() * diff | 0) + right.bounds.y;
-			}
-
-			let y;
-
-			for (y = left.size.y + left.size.h - 1; y <= mid; y++) {
-				if (map[y * dungeonWidth + pointL - 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + pointL - 1] = tiles.WALL;
-				map[y * dungeonWidth + pointL] = tiles.FLOOR;
-				if (map[y * dungeonWidth + pointL + 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + pointL + 1] = tiles.WALL;
-			}
-
-			const lMin = Math.min(pointL - 1, pointR - 1);
-			const lMax = Math.max(pointL + 1, pointR + 1);
-
-			for (let x = lMin; x <= lMax; x++) {
-				if (map[(y - 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(y - 1) * dungeonWidth + x] = tiles.WALL;
-
-				if (x !== lMin && x !== lMax)
-					map[y * dungeonWidth + x] = tiles.FLOOR;
-				else if (map[y * dungeonWidth + x] !== tiles.FLOOR)
-					map[y * dungeonWidth + x] = tiles.WALL;
-
-				if (map[(y + 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(y + 1) * dungeonWidth + x] = tiles.WALL;
-			}
-
-			for (; y <= right.size.y; y++) {
-				if (map[y * dungeonWidth + pointR - 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + pointR - 1] = tiles.WALL;
-				map[y * dungeonWidth + pointR] = tiles.FLOOR;
-				if (map[y * dungeonWidth + pointR + 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + pointR + 1] = tiles.WALL;
-			}
-		} else {
-			const r = Math.min(left.size.x + left.size.w, right.size.x + right.size.w);
-			const l = Math.max(left.size.x, right.size.x);
-
-			let diff = r - 1 - (l + 1);
-			diff = rand.next() * diff | 0;
-			const pos = l + diff + 1;
-
-			const len = right.size.y - (left.size.y + left.size.h - 1);
-			for (let k = 0; k <= len; k++) {
-				const _y = left.size.y + left.size.h - 1 + k;
-				map[_y * dungeonWidth + pos - 1] = tiles.WALL;
-				map[_y * dungeonWidth + pos] = tiles.FLOOR;
-				map[_y * dungeonWidth + pos + 1] = tiles.WALL;
-			}
-		}
-	}
-};
 
 const gStack = [{
 	bounds: {
@@ -236,13 +104,10 @@ const gStack = [{
 	depth: 0
 }];
 
-//<editor-fold desc="generate">
-tree = gStack[0];
-let width = 0;
-let height = 0;
+const tree = gStack[0];
 
 while (gStack.length > 0) {
-	let room = gStack.pop();
+	const room = gStack.pop();
 
 	if (room.bounds.w < dungeonRoomSize * 2 &&
 		room.bounds.h < dungeonRoomSize * 2) {
@@ -276,7 +141,8 @@ while (gStack.length > 0) {
 		dir = rand.next();
 	}
 
-
+	let width = 0;
+	let height = 0;
 	if (dir > 0.5) {
 		width = (rand.next() * 2 - 1) * (room.bounds.w - dungeonRoomSize * 2) * 0.5;
 		width = room.bounds.w * 0.5 + (width | 0);
@@ -340,7 +206,9 @@ while (gStack.length > 0) {
 	gStack.push(room.left);
 	gStack.push(room.right);
 }
+
 //</editor-fold>
+
 
 //<editor-fold desc="connect">
 const sStack = [tree];
@@ -395,9 +263,143 @@ for (let i = 0; i < rooms.length; i++) {
 	};
 }
 
+//</editor-fold>
+
+//<editor-fold desc="hall">
 for (let i = 0; i < connections.length; i++) {
 	const hall = connections[i];
-	hallPainter(hall.left, hall.right);
+	if (hall.left.bounds.x + hall.left.bounds.w === hall.right.bounds.x) {
+		// Left/right
+		if (hall.left.size.y + hall.left.size.h - 3 < hall.right.size.y ||
+			hall.right.size.y + hall.right.size.h - 3 < hall.left.size.y) {
+			// Z Corridor
+			const pointL = hall.left.size.y + 1 + (rand.next() * (hall.left.size.h - 2) | 0);
+			const pointR = hall.right.size.y + 1 + (rand.next() * (hall.right.size.h - 2) | 0);
+
+			let diff, mid;
+			if (hall.left.bounds.h >= hall.right.bounds.h) {
+				diff = hall.left.bounds.x + hall.left.bounds.w - 1 - (hall.left.size.x + hall.left.size.w);
+				mid = (rand.next() * diff | 0) + hall.left.size.x + hall.left.size.w - 1;
+			} else {
+				diff = hall.right.size.x - 1 - (hall.right.bounds.x + 1);
+				mid = (rand.next() * diff | 0) + hall.right.bounds.x;
+			}
+			let x;
+
+			for (x = hall.left.size.x + hall.left.size.w - 1; x <= mid; x++) {
+				if (map[(pointL - 1) * dungeonWidth + x] !== tiles.FLOOR)
+					map[(pointL - 1) * dungeonWidth + x] = tiles.WALL;
+				map[pointL * dungeonWidth + x] = tiles.FLOOR;
+				if (map[(pointL + 1) * dungeonWidth + x] !== tiles.FLOOR)
+					map[(pointL + 1) * dungeonWidth + x] = tiles.WALL;
+			}
+
+			const lMin = Math.min(pointL - 1, pointR - 1);
+			const lMax = Math.max(pointL + 1, pointR + 1);
+
+			for (let y = lMin; y <= lMax; y++) {
+				if (map[y * dungeonWidth + x - 1] !== tiles.FLOOR)
+					map[y * dungeonWidth + x - 1] = tiles.WALL;
+
+				if (y !== lMin && y !== lMax)
+					map[y * dungeonWidth + x] = tiles.FLOOR;
+				else if (map[y * dungeonWidth + x] !== tiles.FLOOR)
+					map[y * dungeonWidth + x] = tiles.WALL;
+
+				if (map[y * dungeonWidth + x + 1] !== tiles.FLOOR)
+					map[y * dungeonWidth + x + 1] = tiles.WALL;
+			}
+
+			for (; x <= hall.right.size.x; x++) {
+				if (map[(pointR - 1) * dungeonWidth + x] !== tiles.FLOOR)
+					map[(pointR - 1) * dungeonWidth + x] = tiles.WALL;
+				map[pointR * dungeonWidth + x] = tiles.FLOOR;
+				if (map[(pointR + 1) * dungeonWidth + x] !== tiles.FLOOR)
+					map[(pointR + 1) * dungeonWidth + x] = tiles.WALL;
+			}
+		} else {
+			const t = Math.min(hall.left.size.y + hall.left.size.h, hall.right.size.y + hall.right.size.h);
+			const b = Math.max(hall.left.size.y, hall.right.size.y);
+
+			let diff = t - 1 - (b + 1);
+			diff = rand.next() * diff | 0;
+			const pos = b + diff + 1;
+
+			let len = hall.right.size.x - (hall.left.size.x + hall.left.size.w - 1);
+			for (let k = 0; k <= len; k++) {
+				const _x = hall.left.size.x + hall.left.size.w - 1 + k;
+				map[(pos - 1) * dungeonWidth + _x] = tiles.WALL;
+				map[pos * dungeonWidth + _x] = tiles.FLOOR;
+				map[(pos + 1) * dungeonWidth + _x] = tiles.WALL;
+			}
+		}
+	} else {
+		// Top/Bottom
+		if (hall.left.size.x + hall.left.size.w - 3 < hall.right.size.x ||
+			hall.right.size.x + hall.right.size.w - 3 < hall.left.size.x) {
+			// Z Corridor
+			const pointL = hall.left.size.x + 1 + (rand.next() * (hall.left.size.w - 2) | 0);
+			const pointR = hall.right.size.x + 1 + (rand.next() * (hall.right.size.w - 2) | 0);
+
+			let diff, mid;
+			if (hall.left.bounds.w >= hall.right.bounds.w) {
+				diff = (hall.left.bounds.y + hall.left.bounds.h) - (hall.left.size.y + hall.left.size.h);
+				mid = (rand.next() * diff | 0) + hall.left.size.y + hall.left.size.h - 1;
+			} else {
+				diff = hall.right.size.y - 1 - (hall.right.bounds.y + 1);
+				mid = (rand.next() * diff | 0) + hall.right.bounds.y;
+			}
+
+			let y;
+
+			for (y = hall.left.size.y + hall.left.size.h - 1; y <= mid; y++) {
+				if (map[y * dungeonWidth + pointL - 1] !== tiles.FLOOR)
+					map[y * dungeonWidth + pointL - 1] = tiles.WALL;
+				map[y * dungeonWidth + pointL] = tiles.FLOOR;
+				if (map[y * dungeonWidth + pointL + 1] !== tiles.FLOOR)
+					map[y * dungeonWidth + pointL + 1] = tiles.WALL;
+			}
+
+			const lMin = Math.min(pointL - 1, pointR - 1);
+			const lMax = Math.max(pointL + 1, pointR + 1);
+
+			for (let x = lMin; x <= lMax; x++) {
+				if (map[(y - 1) * dungeonWidth + x] !== tiles.FLOOR)
+					map[(y - 1) * dungeonWidth + x] = tiles.WALL;
+
+				if (x !== lMin && x !== lMax)
+					map[y * dungeonWidth + x] = tiles.FLOOR;
+				else if (map[y * dungeonWidth + x] !== tiles.FLOOR)
+					map[y * dungeonWidth + x] = tiles.WALL;
+
+				if (map[(y + 1) * dungeonWidth + x] !== tiles.FLOOR)
+					map[(y + 1) * dungeonWidth + x] = tiles.WALL;
+			}
+
+			for (; y <= hall.right.size.y; y++) {
+				if (map[y * dungeonWidth + pointR - 1] !== tiles.FLOOR)
+					map[y * dungeonWidth + pointR - 1] = tiles.WALL;
+				map[y * dungeonWidth + pointR] = tiles.FLOOR;
+				if (map[y * dungeonWidth + pointR + 1] !== tiles.FLOOR)
+					map[y * dungeonWidth + pointR + 1] = tiles.WALL;
+			}
+		} else {
+			const r = Math.min(hall.left.size.x + hall.left.size.w, hall.right.size.x + hall.right.size.w);
+			const l = Math.max(hall.left.size.x, hall.right.size.x);
+
+			let diff = r - 1 - (l + 1);
+			diff = rand.next() * diff | 0;
+			const pos = l + diff + 1;
+
+			const len = hall.right.size.y - (hall.left.size.y + hall.left.size.h - 1);
+			for (let k = 0; k <= len; k++) {
+				const _y = hall.left.size.y + hall.left.size.h - 1 + k;
+				map[_y * dungeonWidth + pos - 1] = tiles.WALL;
+				map[_y * dungeonWidth + pos] = tiles.FLOOR;
+				map[_y * dungeonWidth + pos + 1] = tiles.WALL;
+			}
+		}
+	}
 }
 //</editor-fold>
 
