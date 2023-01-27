@@ -18,7 +18,7 @@ class Random {
 	 * @param {number} max
 	 * @return {number}
 	 */
-	int(min, max) {
+	between(min, max) {
 		return Math.floor(this.next() * (max - min + 1) + min);
 	}
 }
@@ -36,33 +36,21 @@ const tiles = {
 	FLOOR: 2
 };
 const map = [];
+for (let i = 0; i < dungeonWidth * dungeonHeight; i++) {
+	map[i] = tiles.EMPTY;
+}
 const connections = [];
 
 class Room {
 	/** @type {Bounds}*/ bounds;
-	/** @type {Bounds}*/ size;
-	depth = 0;
 	/** @type {?Room}*/ left = null;
 	/** @type {?Room}*/ right = null;
-	/** @type {?Room}*/ parent = null;
 
 	/**
 	 * @param {Bounds} bounds
-	 * @param {number} depth
-	 * @param {?Room} left
-	 * @param {?Room} right
-	 * @param {?Room} parent
 	 */
-	constructor(bounds, depth, {
-		left = null,
-		right = null,
-		parent = null,
-	} = {}) {
+	constructor(bounds) {
 		this.bounds = bounds;
-		this.depth = depth;
-		this.left = left;
-		this.right = right;
-		this.parent = parent;
 	}
 
 	split() {
@@ -72,14 +60,14 @@ class Room {
 		const bx = .45;
 
 		if (vertical) {
-			ba = new Bounds(b.x, b.y, rand.int(1, b.w), b.h);
+			ba = new Bounds(b.x, b.y, rand.between(1, b.w), b.h);
 			bb = new Bounds(b.x + ba.w, b.y, b.w - ba.w, b.h);
 
 			if (ba.w / ba.h < bx || bb.w / bb.h < bx) {
 				return this.split();
 			}
 		} else {
-			ba = new Bounds(b.x, b.y, b.w, rand.int(1, b.h));
+			ba = new Bounds(b.x, b.y, b.w, rand.between(1, b.h));
 			bb = new Bounds(b.x, b.y + ba.h, b.w, b.h - ba.h);
 
 			if (ba.h / ba.w < bx || bb.h / bb.w < bx) {
@@ -87,9 +75,8 @@ class Room {
 			}
 		}
 
-		const d = this.depth + 1;
-		this.left = new Room(ba, d, {parent: this});
-		this.right = new Room(bb, d, {parent: this});
+		this.left = new Room(ba);
+		this.right = new Room(bb);
 	}
 
 	/** @return {Room[]} */
@@ -146,7 +133,7 @@ class Bounds {
 }
 
 //<editor-fold desc="generate">
-const rootRoom = new Room(new Bounds(0, 0, dungeonWidth, dungeonHeight), 0);
+const rootRoom = new Room(new Bounds(0, 0, dungeonWidth, dungeonHeight));
 
 const gStack = [rootRoom];
 while (gStack.length > 0) {
@@ -209,176 +196,56 @@ if (0) {
 //</editor-fold>
 
 //<editor-fold desc="room size">
-for (let i = 0; i < dungeonWidth * dungeonHeight; i++) {
-	map[i] = tiles.EMPTY;
-}
-
 const rooms = rootRoom.flat();
-
 for (let i = 0; i < rooms.length; i++) {
 	const room = rooms[i];
-
-	let x,y,w,h;
 	const b = room.bounds;
-
-	if (0) {
-		x = b.x + rand.int(1, Math.floor(b.w / 3));
-		y = b.y + rand.int(1, Math.floor(b.h / 3));
-		w = b.w - (x - b.x);
-		h = b.h - (y - b.y);
-		w -= rand.int(1, w / 3);
-		h -= rand.int(1, h / 3);
-	} else {
-		x = b.x + 1;
-		y = b.y + 1;
-		w = b.w - 2;
-		h = b.h - 2;
-	}
-
-	for (let _y = y; _y < h + y; _y++) {
-		for (let _x = x; _x < w + x; _x++) {
-			map[_y * dungeonWidth + _x] = _x === x || _x === w + x - 1 ||
-			_y === y || _y === h + y - 1 ? tiles.WALL : tiles.FLOOR;
+	for (let y = b.y; y < b.h + b.y; y++) {
+		for (let x = b.x; x < b.w + b.x; x++) {
+			map[y * dungeonWidth + x] = x === b.x || x === b.w + b.x - 1 ||
+			y === b.y || y === b.h + b.y - 1 ? tiles.WALL : tiles.FLOOR;
 		}
 	}
-	room.size = new Bounds(x, y, w, h);
 }
 
 //</editor-fold>
 
 //<editor-fold desc="hall">
 for (let i = 0; i < connections.length; i++) {
-	const hall = connections[i];
-	if (hall.left.bounds.x + hall.left.bounds.w === hall.right.bounds.x) {
-		// Left/right
-		if (hall.left.size.y + hall.left.size.h - 3 < hall.right.size.y ||
-			hall.right.size.y + hall.right.size.h - 3 < hall.left.size.y) {
-			// Z Corridor
-			const pointL = hall.left.size.y + 1 + (rand.next() * (hall.left.size.h - 2) | 0);
-			const pointR = hall.right.size.y + 1 + (rand.next() * (hall.right.size.h - 2) | 0);
+	const room = connections[i];
+	const lb = room.left.bounds;
+	const rb = room.right.bounds;
 
-			let diff, mid;
-			if (hall.left.bounds.h >= hall.right.bounds.h) {
-				diff = hall.left.bounds.x + hall.left.bounds.w - 1 - (hall.left.size.x + hall.left.size.w);
-				mid = (rand.next() * diff | 0) + hall.left.size.x + hall.left.size.w - 1;
-			} else {
-				diff = hall.right.size.x - 1 - (hall.right.bounds.x + 1);
-				mid = (rand.next() * diff | 0) + hall.right.bounds.x;
-			}
-			let x;
+	if (lb.x + lb.w === rb.x) {
+		const t = Math.min(lb.y + lb.h, rb.y + rb.h);
+		const b = Math.max(lb.y, rb.y);
 
-			for (x = hall.left.size.x + hall.left.size.w - 1; x <= mid; x++) {
-				if (map[(pointL - 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(pointL - 1) * dungeonWidth + x] = tiles.WALL;
-				map[pointL * dungeonWidth + x] = tiles.FLOOR;
-				if (map[(pointL + 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(pointL + 1) * dungeonWidth + x] = tiles.WALL;
-			}
+		let diff = t - 1 - (b + 1);
+		diff = rand.next() * diff | 0;
+		const pos = b + diff + 1;
 
-			const lMin = Math.min(pointL - 1, pointR - 1);
-			const lMax = Math.max(pointL + 1, pointR + 1);
-
-			for (let y = lMin; y <= lMax; y++) {
-				if (map[y * dungeonWidth + x - 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + x - 1] = tiles.WALL;
-
-				if (y !== lMin && y !== lMax)
-					map[y * dungeonWidth + x] = tiles.FLOOR;
-				else if (map[y * dungeonWidth + x] !== tiles.FLOOR)
-					map[y * dungeonWidth + x] = tiles.WALL;
-
-				if (map[y * dungeonWidth + x + 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + x + 1] = tiles.WALL;
-			}
-
-			for (; x <= hall.right.size.x; x++) {
-				if (map[(pointR - 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(pointR - 1) * dungeonWidth + x] = tiles.WALL;
-				map[pointR * dungeonWidth + x] = tiles.FLOOR;
-				if (map[(pointR + 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(pointR + 1) * dungeonWidth + x] = tiles.WALL;
-			}
-		} else {
-			const t = Math.min(hall.left.size.y + hall.left.size.h, hall.right.size.y + hall.right.size.h);
-			const b = Math.max(hall.left.size.y, hall.right.size.y);
-
-			let diff = t - 1 - (b + 1);
-			diff = rand.next() * diff | 0;
-			const pos = b + diff + 1;
-
-			let len = hall.right.size.x - (hall.left.size.x + hall.left.size.w - 1);
-			for (let k = 0; k <= len; k++) {
-				const _x = hall.left.size.x + hall.left.size.w - 1 + k;
-				map[(pos - 1) * dungeonWidth + _x] = tiles.WALL;
-				map[pos * dungeonWidth + _x] = tiles.FLOOR;
-				map[(pos + 1) * dungeonWidth + _x] = tiles.WALL;
-			}
+		let len = rb.x - (lb.x + lb.w - 1);
+		for (let k = 0; k <= len; k++) {
+			const _x = lb.x + lb.w - 1 + k;
+			map[(pos - 1) * dungeonWidth + _x] = tiles.WALL;
+			map[pos * dungeonWidth + _x] = tiles.FLOOR;
+			map[(pos + 1) * dungeonWidth + _x] = tiles.WALL;
 		}
+
 	} else {
-		// Top/Bottom
-		if (hall.left.size.x + hall.left.size.w - 3 < hall.right.size.x ||
-			hall.right.size.x + hall.right.size.w - 3 < hall.left.size.x) {
-			// Z Corridor
-			const pointL = hall.left.size.x + 1 + (rand.next() * (hall.left.size.w - 2) | 0);
-			const pointR = hall.right.size.x + 1 + (rand.next() * (hall.right.size.w - 2) | 0);
+		const r = Math.min(lb.x + lb.w, rb.x + rb.w);
+		const l = Math.max(lb.x, rb.x);
 
-			let diff, mid;
-			if (hall.left.bounds.w >= hall.right.bounds.w) {
-				diff = (hall.left.bounds.y + hall.left.bounds.h) - (hall.left.size.y + hall.left.size.h);
-				mid = (rand.next() * diff | 0) + hall.left.size.y + hall.left.size.h - 1;
-			} else {
-				diff = hall.right.size.y - 1 - (hall.right.bounds.y + 1);
-				mid = (rand.next() * diff | 0) + hall.right.bounds.y;
-			}
+		let diff = r - 1 - (l + 1);
+		diff = rand.next() * diff | 0;
+		const pos = l + diff + 1;
 
-			let y;
-
-			for (y = hall.left.size.y + hall.left.size.h - 1; y <= mid; y++) {
-				if (map[y * dungeonWidth + pointL - 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + pointL - 1] = tiles.WALL;
-				map[y * dungeonWidth + pointL] = tiles.FLOOR;
-				if (map[y * dungeonWidth + pointL + 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + pointL + 1] = tiles.WALL;
-			}
-
-			const lMin = Math.min(pointL - 1, pointR - 1);
-			const lMax = Math.max(pointL + 1, pointR + 1);
-
-			for (let x = lMin; x <= lMax; x++) {
-				if (map[(y - 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(y - 1) * dungeonWidth + x] = tiles.WALL;
-
-				if (x !== lMin && x !== lMax)
-					map[y * dungeonWidth + x] = tiles.FLOOR;
-				else if (map[y * dungeonWidth + x] !== tiles.FLOOR)
-					map[y * dungeonWidth + x] = tiles.WALL;
-
-				if (map[(y + 1) * dungeonWidth + x] !== tiles.FLOOR)
-					map[(y + 1) * dungeonWidth + x] = tiles.WALL;
-			}
-
-			for (; y <= hall.right.size.y; y++) {
-				if (map[y * dungeonWidth + pointR - 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + pointR - 1] = tiles.WALL;
-				map[y * dungeonWidth + pointR] = tiles.FLOOR;
-				if (map[y * dungeonWidth + pointR + 1] !== tiles.FLOOR)
-					map[y * dungeonWidth + pointR + 1] = tiles.WALL;
-			}
-		} else {
-			const r = Math.min(hall.left.size.x + hall.left.size.w, hall.right.size.x + hall.right.size.w);
-			const l = Math.max(hall.left.size.x, hall.right.size.x);
-
-			let diff = r - 1 - (l + 1);
-			diff = rand.next() * diff | 0;
-			const pos = l + diff + 1;
-
-			const len = hall.right.size.y - (hall.left.size.y + hall.left.size.h - 1);
-			for (let k = 0; k <= len; k++) {
-				const _y = hall.left.size.y + hall.left.size.h - 1 + k;
-				map[_y * dungeonWidth + pos - 1] = tiles.WALL;
-				map[_y * dungeonWidth + pos] = tiles.FLOOR;
-				map[_y * dungeonWidth + pos + 1] = tiles.WALL;
-			}
+		const len = rb.y - (lb.y + lb.h - 1);
+		for (let k = 0; k <= len; k++) {
+			const _y = lb.y + lb.h - 1 + k;
+			map[_y * dungeonWidth + pos - 1] = tiles.WALL;
+			map[_y * dungeonWidth + pos] = tiles.FLOOR;
+			map[_y * dungeonWidth + pos + 1] = tiles.WALL;
 		}
 	}
 }
@@ -416,12 +283,12 @@ for (let i = 0; i < connections.length; i++) {
 	const item = connections[i];
 
 	ctx.moveTo(
-		(item.left.size.x + item.left.size.w * 0.5) * cellSize,
-		(item.left.size.y + item.left.size.h * 0.5) * cellSize
+		(item.left.bounds.x + item.left.bounds.w * 0.5) * cellSize,
+		(item.left.bounds.y + item.left.bounds.h * 0.5) * cellSize
 	);
 	ctx.lineTo(
-		(item.right.size.x + item.right.size.w * 0.5) * cellSize,
-		(item.right.size.y + item.right.size.h * 0.5) * cellSize
+		(item.right.bounds.x + item.right.bounds.w * 0.5) * cellSize,
+		(item.right.bounds.y + item.right.bounds.h * 0.5) * cellSize
 	);
 }
 ctx.stroke();
@@ -429,7 +296,7 @@ ctx.stroke();
 // draw grid
 ctx.beginPath();
 ctx.strokeStyle = "rgba(255,255,255,0.4)";
-ctx.lineWidth = 0.5;
+ctx.lineWidth = .5;
 
 for (let i = 0; i <= dungeonWidth; i++) {
 	ctx.moveTo(i * cellSize, 0);
@@ -441,14 +308,6 @@ for (let i = 0; i <= dungeonHeight; i++) {
 }
 ctx.stroke();
 ctx.closePath();
-
-// draw room bounds
-ctx.strokeStyle = 'rgb(143,143,143)';
-ctx.lineWidth = .5;
-for (let i = 0; i < flatRooms.length; i++) {
-	const lb = flatRooms[i].bounds;
-	ctx.strokeRect(lb.x * cellSize, lb.y * cellSize, lb.w * cellSize, lb.h * cellSize);
-}
 
 document.body.appendChild(canvas);
 //</editor-fold>
