@@ -26,7 +26,6 @@ class Random {
 const dungeonWidth = 220;
 const dungeonHeight = 180;
 const cellSize = 6;
-const dungeonRoomSize = 10;
 const seed = Date.now();
 //const seed = 1674773190194;
 //console.log(seed);
@@ -41,6 +40,7 @@ const connections = [];
 
 class Room {
 	/** @type {Bounds}*/ bounds;
+	/** @type {Bounds}*/ size;
 	depth = 0;
 	/** @type {?Room}*/ left = null;
 	/** @type {?Room}*/ right = null;
@@ -177,47 +177,32 @@ if (0) {
 		}
 	}
 } else {
-	/**
-	 * @param {Room} left
-	 * @param {Room} right
-	 * @return {{left: Room, right: Room}|null}
-	 */
-	const adjacent = (left, right) => {
-		const lf = left === null ? [] : left.flat();
-		const rf = right === null ? [] : right.flat();
-
-		for (let i = 0; i < lf.length; i++) {
-			const l = lf[i];
-			for (let j = 0; j < rf.length; j++) {
-				const r = rf[j];
-				if (l.bounds.near(r.bounds)) {
-					return {
-						left: l,
-						right: r
-					};
-				}
-			}
-		}
-		return null;
-	};
-
 	const sStack = [rootRoom];
-
 	while (sStack.length > 0) {
 		const room = sStack.pop();
-
 		if (room === null) {
 			continue;
 		}
-
 		sStack.push(room.left);
 		sStack.push(room.right);
 
-		const edge = adjacent(room.left, room.right);
+		const lf = room.left === null ? [] : room.left.flat();
+		const rf = room.right === null ? [] : room.right.flat();
 
-		if (edge !== null) {
-			connections.push(edge);
-		}
+		a:
+			for (let i = 0; i < lf.length; i++) {
+				const l = lf[i];
+				for (let j = 0; j < rf.length; j++) {
+					const r = rf[j];
+					if (l.bounds.near(r.bounds)) {
+						connections.push({
+							left: l,
+							right: r
+						});
+						break a;
+					}
+				}
+			}
 	}
 }
 
@@ -233,10 +218,22 @@ const rooms = rootRoom.flat();
 for (let i = 0; i < rooms.length; i++) {
 	const room = rooms[i];
 
-	const w = dungeonRoomSize + rand.next() * (room.bounds.w - dungeonRoomSize - 2) | 0;
-	const h = dungeonRoomSize + rand.next() * (room.bounds.h - dungeonRoomSize - 2) | 0;
-	const x = room.bounds.x + 1 + (room.bounds.w - w - 1) * rand.next() | 0;
-	const y = room.bounds.y + 1 + (room.bounds.h - h - 1) * rand.next() | 0;
+	let x,y,w,h;
+	const b = room.bounds;
+
+	if (0) {
+		x = b.x + rand.int(1, Math.floor(b.w / 3));
+		y = b.y + rand.int(1, Math.floor(b.h / 3));
+		w = b.w - (x - b.x);
+		h = b.h - (y - b.y);
+		w -= rand.int(1, w / 3);
+		h -= rand.int(1, h / 3);
+	} else {
+		x = b.x + 1;
+		y = b.y + 1;
+		w = b.w - 2;
+		h = b.h - 2;
+	}
 
 	for (let _y = y; _y < h + y; _y++) {
 		for (let _x = x; _x < w + x; _x++) {
@@ -244,13 +241,7 @@ for (let i = 0; i < rooms.length; i++) {
 			_y === y || _y === h + y - 1 ? tiles.WALL : tiles.FLOOR;
 		}
 	}
-
-	room.size = {
-		x: x,
-		y: y,
-		w: w,
-		h: h
-	};
+	room.size = new Bounds(x, y, w, h);
 }
 
 //</editor-fold>
