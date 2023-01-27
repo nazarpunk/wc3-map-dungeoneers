@@ -12,6 +12,15 @@ class Random {
 		this.m_w = 18000 * (this.m_w & 65535) + (this.m_w >> 16) & this.mask;
 		return ((this.m_z << 16) + this.m_w & this.mask) / 4294967296 + .5;
 	}
+
+	/**
+	 * @param {number} min
+	 * @param {number} max
+	 * @return {number}
+	 */
+	int(min, max) {
+		return Math.floor(this.next() * (max - min + 1) + min);
+	}
 }
 
 const dungeonWidth = 220;
@@ -22,8 +31,6 @@ const seed = Date.now();
 //const seed = 1674773190194;
 //console.log(seed);
 const rand = new Random(seed);
-const minDepth = 4;
-const splitChance = .35;
 const tiles = {
 	EMPTY: 0,
 	WALL: 1,
@@ -32,53 +39,147 @@ const tiles = {
 const map = [];
 const connections = [];
 
-const flatLeaf = tree => {
-	const flat = [];
-	const stack = [];
-	let current = tree;
+class Room {
+	/** @type {Bounds}*/ bounds;
+	depth = 0;
+	/** @type {?Room}*/ left = null;
+	/** @type {?Room}*/ right = null;
+	/** @type {?Room}*/ parent = null;
 
-	while (stack.length > 0 || current !== null) {
-		if (current !== null) {
-			stack.push(current);
-			current = current.left;
-		} else {
-			current = stack.pop();
-			if (current.left === null && current.right === null)
-				flat.push(current);
-			current = current.right;
-		}
+	/**
+	 * @param {Bounds} bounds
+	 * @param {number} depth
+	 * @param {?Room} left
+	 * @param {?Room} right
+	 * @param {?Room} parent
+	 */
+	constructor(bounds, depth, {
+		left = null,
+		right = null,
+		parent = null,
+	} = {}) {
+		this.bounds = bounds;
+		this.depth = depth;
+		this.left = left;
+		this.right = right;
+		this.parent = parent;
 	}
 
-	return flat;
-};
+	split() {
+		const vertical = rand.next() >= .5;
+		const b = this.bounds;
+		let ba, bb;
+		const bx = .45;
 
-const adjacentBSP = (left, right) => {
-	const flatL = flatLeaf(left);
-	const flatR = flatLeaf(right);
+		if (vertical) {
+			ba = new Bounds(b.x, b.y, rand.int(1, b.w), b.h);
+			bb = new Bounds(b.x + ba.w, b.y, b.w - ba.w, b.h);
 
-	let found = false;
-	for (let i = 0; i < flatL.length; i++) {
-		if (found) break;
-		const L = flatL[i];
-
-		for (let j = 0; j < flatR.length; j++) {
-			if (found) break;
-			const R = flatR[j];
-
-			if (L.bounds.x + L.bounds.w === R.bounds.x &&
-				(L.bounds.y <= R.bounds.y + R.bounds.h && L.bounds.y >= R.bounds.y ||
-					R.bounds.y <= L.bounds.y + L.bounds.h && R.bounds.y >= L.bounds.y)) {
-				found = true;
-			} else if (L.bounds.y + L.bounds.h === R.bounds.y &&
-				(L.bounds.x <= R.bounds.x + R.bounds.w && L.bounds.x >= R.bounds.x ||
-					R.bounds.x <= L.bounds.x + L.bounds.w && R.bounds.x >= L.bounds.x)) {
-				found = true;
+			if (ba.w / ba.h < bx || bb.w / bb.h < bx) {
+				return this.split();
 			}
+		} else {
+			ba = new Bounds(b.x, b.y, b.w, rand.int(1, b.h));
+			bb = new Bounds(b.x, b.y + ba.h, b.w, b.h - ba.h);
 
-			if (found) {
+			if (ba.h / ba.w < bx || bb.h / bb.w < bx) {
+				return this.split();
+			}
+		}
+
+		const d = this.depth + 1;
+		this.left = new Room(ba, d, {parent: this});
+		this.right = new Room(bb, d, {parent: this});
+	}
+
+	/** @return {Room[]} */
+	flat() {
+		const flat = [];
+		const stack = [];
+		let room = this;
+
+		while (stack.length > 0 || room !== null) {
+			if (room !== null) {
+				stack.push(room);
+				room = room.left;
+			} else {
+				room = stack.pop();
+				if (room.left === null && room.right === null) {
+					flat.push(room);
+				}
+				room = room.right;
+			}
+		}
+
+		return flat;
+	}
+}
+
+class Bounds {
+	x = 0;
+	y = 0;
+	w = 0;
+	h = 0;
+
+	/**
+	 * @param {number} x
+	 * @param {number} y
+	 * @param {number} w
+	 * @param {number} h
+	 */
+	constructor(x, y, w, h) {
+		this.x = x;
+		this.y = y;
+		this.w = w;
+		this.h = h;
+	}
+
+	/**
+	 * @param {Bounds} r
+	 * @return {boolean}
+	 */
+	near(r) {
+		const l = this;
+		return l.x + l.w === r.x && (l.y <= r.y + r.h && l.y >= r.y || r.y <= l.y + l.h && r.y >= l.y) ||
+			l.y + l.h === r.y && (l.x <= r.x + r.w && l.x >= r.x || r.x <= l.x + l.w && r.x >= l.x);
+	}
+}
+
+//<editor-fold desc="generate">
+const rootRoom = new Room(new Bounds(0, 0, dungeonWidth, dungeonHeight), 0);
+
+const gStack = [rootRoom];
+while (gStack.length > 0) {
+	const r = gStack.pop();
+	const b = r.bounds;
+	if (Math.min(b.w, b.h) < 30) {
+		continue;
+	}
+	r.split();
+	gStack.push(r.left);
+	gStack.push(r.right);
+}
+
+//</editor-fold>
+
+//<editor-fold desc="connect">
+/**
+ * @param {Room} left
+ * @param {Room} right
+ * @return {{left: Room, right: Room}|null}
+ */
+const adjacent = (left, right) => {
+	const lf = left === null ? [] : left.flat();
+	const rf = right === null ? [] : right.flat();
+
+	for (let i = 0; i < lf.length; i++) {
+		const l = lf[i];
+		for (let j = 0; j < rf.length; j++) {
+			const r = rf[j];
+			if (l.bounds.near(r.bounds)) {
 				return {
-					left: L,
-					right: R
+					left: l,
+					right: r
 				};
 			}
 		}
@@ -87,131 +188,8 @@ const adjacentBSP = (left, right) => {
 	return null;
 };
 
-//<editor-fold desc="generate">
+const sStack = [rootRoom];
 
-
-
-const gStack = [{
-	bounds: {
-		x: 0,
-		y: 0,
-		w: dungeonWidth,
-		h: dungeonHeight
-	},
-	left: null,
-	right: null,
-	parent: null,
-	depth: 0
-}];
-
-const tree = gStack[0];
-
-while (gStack.length > 0) {
-	const room = gStack.pop();
-
-	if (room.bounds.w < dungeonRoomSize * 2 &&
-		room.bounds.h < dungeonRoomSize * 2) {
-		continue;
-	}
-
-	if (Math.min(room.bounds.w, room.bounds.h) < 5) {
-		continue;
-	}
-
-	let split = splitChance;
-	if (room.bounds.w > 2.5 * room.bounds.h ||
-		room.bounds.h > 2.5 * room.bounds.w) {
-		split *= 1.7;
-	} else {
-		split *= 1;
-	}
-
-	if (rand.next() > split && room.depth >= minDepth) {
-		continue;
-	}
-
-	let dir;
-	if (room.bounds.w >= 2.5 * room.bounds.h ||
-		room.bounds.h < dungeonRoomSize * 2) {
-		dir = .75;
-	} else if (room.bounds.h > 2.5 * room.bounds.w ||
-		room.bounds.h < dungeonRoomSize * 2) {
-		dir = .25;
-	} else {
-		dir = rand.next();
-	}
-
-	let width = 0;
-	let height = 0;
-	if (dir > 0.5) {
-		width = (rand.next() * 2 - 1) * (room.bounds.w - dungeonRoomSize * 2) * 0.5;
-		width = room.bounds.w * 0.5 + (width | 0);
-
-		room.left = {
-			bounds: {
-				x: room.bounds.x,
-				y: room.bounds.y,
-				w: width,
-				h: room.bounds.h
-			},
-			left: null,
-			right: null,
-			parent: room,
-			depth: room.depth + 1
-		};
-
-		room.right = {
-			bounds: {
-				x: room.bounds.x + width,
-				y: room.bounds.y,
-				w: room.bounds.w - width,
-				h: room.bounds.h
-			},
-			left: null,
-			right: null,
-			parent: room,
-			depth: room.depth + 1
-		};
-	} else {
-		height = (rand.next() * 2 - 1) * (room.bounds.h - dungeonRoomSize * 2) * 0.5;
-		height = room.bounds.h * 0.5 + (height | 0);
-
-		room.left = {
-			bounds: {
-				x: room.bounds.x,
-				y: room.bounds.y,
-				w: room.bounds.w,
-				h: height
-			},
-			left: null,
-			right: null,
-			parent: room,
-			depth: room.depth + 1
-		};
-
-		room.right = {
-			bounds: {
-				x: room.bounds.x,
-				y: room.bounds.y + height,
-				w: room.bounds.w,
-				h: room.bounds.h - height
-			},
-			left: null,
-			right: null,
-			parent: room,
-			depth: room.depth + 1
-		};
-	}
-
-	gStack.push(room.left);
-	gStack.push(room.right);
-}
-
-//</editor-fold>
-
-
-//<editor-fold desc="connect">
-const sStack = [tree];
 while (sStack.length > 0) {
 	const room = sStack.pop();
 
@@ -222,19 +200,21 @@ while (sStack.length > 0) {
 	sStack.push(room.left);
 	sStack.push(room.right);
 
-	const edge = adjacentBSP(room.left, room.right);
+	const edge = adjacent(room.left, room.right);
+
 	if (edge !== null) {
 		connections.push(edge);
 	}
 }
+
 //</editor-fold>
 
-//<editor-fold desc="map">
+//<editor-fold desc="room size">
 for (let i = 0; i < dungeonWidth * dungeonHeight; i++) {
 	map[i] = tiles.EMPTY;
 }
 
-const rooms = flatLeaf(tree);
+const rooms = rootRoom.flat();
 
 for (let i = 0; i < rooms.length; i++) {
 	const room = rooms[i];
@@ -246,12 +226,8 @@ for (let i = 0; i < rooms.length; i++) {
 
 	for (let _y = y; _y < h + y; _y++) {
 		for (let _x = x; _x < w + x; _x++) {
-			if (_x === x || _x === w + x - 1 ||
-				_y === y || _y === h + y - 1) {
-				map[_y * dungeonWidth + _x] = tiles.WALL;
-			} else {
-				map[_y * dungeonWidth + _x] = tiles.FLOOR;
-			}
+			map[_y * dungeonWidth + _x] = _x === x || _x === w + x - 1 ||
+			_y === y || _y === h + y - 1 ? tiles.WALL : tiles.FLOOR;
 		}
 	}
 
