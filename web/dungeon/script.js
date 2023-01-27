@@ -18,7 +18,7 @@ class Random {
 	 * @param {number} max
 	 * @return {number}
 	 */
-	between(min, max) {
+	int(min, max) {
 		return Math.floor(this.next() * (max - min + 1) + min);
 	}
 }
@@ -54,29 +54,30 @@ class Room {
 	}
 
 	split() {
-		const vertical = rand.next() >= .5;
 		const b = this.bounds;
-		let ba, bb;
-		const bx = .45;
-
-		if (vertical) {
-			ba = new Bounds(b.x, b.y, rand.between(1, b.w), b.h);
-			bb = new Bounds(b.x + ba.w, b.y, b.w - ba.w, b.h);
-
-			if (ba.w / ba.h < bx || bb.w / bb.h < bx) {
-				return this.split();
-			}
+		let v;
+		if (b.h / b.w < .8) {
+			v = true;
+		} else if (b.w / b.h < .8) {
+			v = false;
 		} else {
-			ba = new Bounds(b.x, b.y, b.w, rand.between(1, b.h));
-			bb = new Bounds(b.x, b.y + ba.h, b.w, b.h - ba.h);
-
-			if (ba.h / ba.w < bx || bb.h / bb.w < bx) {
-				return this.split();
-			}
+			v = rand.next() >= .5;
 		}
 
+		const r = s => {
+			const a = Math.floor(s * .25);
+			return rand.int(a, s - a)
+		};
+
+		let ba;
+		if (v) {
+			ba = new Bounds(b.x, b.y, r(b.w), b.h);
+			this.right = new Room(new Bounds(b.x + ba.w, b.y, b.w - ba.w, b.h));
+		} else {
+			ba = new Bounds(b.x, b.y, b.w, r(b.h));
+			this.right = new Room(new Bounds(b.x, b.y + ba.h, b.w, b.h - ba.h));
+		}
 		this.left = new Room(ba);
-		this.right = new Room(bb);
 	}
 
 	/** @return {Room[]} */
@@ -139,7 +140,8 @@ const gStack = [rootRoom];
 while (gStack.length > 0) {
 	const r = gStack.pop();
 	const b = r.bounds;
-	if (Math.min(b.w, b.h) < 30) {
+
+	if (Math.min(b.w, b.h) < 40) {
 		continue;
 	}
 	r.split();
@@ -195,7 +197,7 @@ if (0) {
 
 //</editor-fold>
 
-//<editor-fold desc="room size">
+//<editor-fold desc="room set">
 const rooms = rootRoom.flat();
 for (let i = 0; i < rooms.length; i++) {
 	const room = rooms[i];
@@ -207,7 +209,6 @@ for (let i = 0; i < rooms.length; i++) {
 		}
 	}
 }
-
 //</editor-fold>
 
 //<editor-fold desc="hall">
