@@ -169,14 +169,6 @@ const generate = () => {
 	 ctx.fillText(this.index.toString(), (this.x + this.w * .5) * cellSize, (this.y + this.h * .5) * cellSize);
 	 */
 
-	const list = [1, 2, 3, 4, 5];
-	for (let i = 0; i < list.length - 1; i++) {
-		for (let k = i + 1; k < list.length; k++) {
-			console.log(list[i], list[k]);
-		}
-	}
-
-
 	drawTree(roomTree);
 
 	// draw grid

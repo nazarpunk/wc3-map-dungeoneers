@@ -163,47 +163,61 @@ while (gStack.length > 0) {
 //</editor-fold>
 
 //<editor-fold desc="connect">
-/**
- * @param {Room} left
- * @param {Room} right
- * @return {{left: Room, right: Room}|null}
- */
-const adjacent = (left, right) => {
-	const lf = left === null ? [] : left.flat();
-	const rf = right === null ? [] : right.flat();
 
-	for (let i = 0; i < lf.length; i++) {
-		const l = lf[i];
-		for (let j = 0; j < rf.length; j++) {
-			const r = rf[j];
-			if (l.bounds.near(r.bounds)) {
-				return {
-					left: l,
-					right: r
-				};
+const flatRooms = rootRoom.flat();
+if (0) {
+	for (let i = 0; i < flatRooms.length - 1; i++) {
+		for (let k = i + 1; k < flatRooms.length; k++) {
+			if (flatRooms[i].bounds.near(flatRooms[k].bounds)) {
+				connections.push({
+					left: flatRooms[i],
+					right: flatRooms[k]
+				});
 			}
 		}
 	}
+} else {
+	/**
+	 * @param {Room} left
+	 * @param {Room} right
+	 * @return {{left: Room, right: Room}|null}
+	 */
+	const adjacent = (left, right) => {
+		const lf = left === null ? [] : left.flat();
+		const rf = right === null ? [] : right.flat();
 
-	return null;
-};
+		for (let i = 0; i < lf.length; i++) {
+			const l = lf[i];
+			for (let j = 0; j < rf.length; j++) {
+				const r = rf[j];
+				if (l.bounds.near(r.bounds)) {
+					return {
+						left: l,
+						right: r
+					};
+				}
+			}
+		}
+		return null;
+	};
 
-const sStack = [rootRoom];
+	const sStack = [rootRoom];
 
-while (sStack.length > 0) {
-	const room = sStack.pop();
+	while (sStack.length > 0) {
+		const room = sStack.pop();
 
-	if (room === null) {
-		continue;
-	}
+		if (room === null) {
+			continue;
+		}
 
-	sStack.push(room.left);
-	sStack.push(room.right);
+		sStack.push(room.left);
+		sStack.push(room.right);
 
-	const edge = adjacent(room.left, room.right);
+		const edge = adjacent(room.left, room.right);
 
-	if (edge !== null) {
-		connections.push(edge);
+		if (edge !== null) {
+			connections.push(edge);
+		}
 	}
 }
 
@@ -385,20 +399,6 @@ canvas.width = dungeonWidth * cellSize;
 canvas.height = dungeonHeight * cellSize;
 const ctx = canvas.getContext('2d');
 
-// draw room
-ctx.strokeStyle = 'rgb(143,143,143)';
-ctx.lineWidth = .5;
-let item;
-for (let i = 0; i < connections.length; i++) {
-	item = connections[i];
-
-	const lb = item.left.bounds;
-	const rb = item.right.bounds;
-
-	ctx.strokeRect(lb.x * cellSize, lb.y * cellSize, lb.w * cellSize, lb.h * cellSize);
-	ctx.strokeRect(rb.x * cellSize, rb.y * cellSize, rb.w * cellSize, rb.h * cellSize);
-}
-
 // draw tile
 for (let y = 0; y < dungeonHeight; y++) {
 	for (let x = 0; x < dungeonWidth; x++) {
@@ -422,7 +422,7 @@ for (let y = 0; y < dungeonHeight; y++) {
 ctx.strokeStyle = 'rgb(255,0,0)';
 ctx.beginPath();
 for (let i = 0; i < connections.length; i++) {
-	item = connections[i];
+	const item = connections[i];
 
 	ctx.moveTo(
 		(item.left.size.x + item.left.size.w * 0.5) * cellSize,
@@ -450,6 +450,14 @@ for (let i = 0; i <= dungeonHeight; i++) {
 }
 ctx.stroke();
 ctx.closePath();
+
+// draw room bounds
+ctx.strokeStyle = 'rgb(143,143,143)';
+ctx.lineWidth = .5;
+for (let i = 0; i < flatRooms.length; i++) {
+	const lb = flatRooms[i].bounds;
+	ctx.strokeRect(lb.x * cellSize, lb.y * cellSize, lb.w * cellSize, lb.h * cellSize);
+}
 
 document.body.appendChild(canvas);
 //</editor-fold>
