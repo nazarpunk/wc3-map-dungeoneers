@@ -1,16 +1,15 @@
 // noinspection DuplicatedCode
 
-class Random {
+class RandomSeed {
 	constructor(seed) {
 		this.m_w = seed;
 		this.m_z = 987654321;
-		this.mask = 0xffffffff;
 	}
-
+	
 	next() {
-		this.m_z = 36969 * (this.m_z & 65535) + (this.m_z >> 16) & this.mask;
-		this.m_w = 18000 * (this.m_w & 65535) + (this.m_w >> 16) & this.mask;
-		return ((this.m_z << 16) + this.m_w & this.mask) / 4294967296 + .5;
+		this.m_z = 36969 * (this.m_z & 65535) + (this.m_z >> 16) & 4294967295;
+		this.m_w = 18000 * (this.m_w & 65535) + (this.m_w >> 16) & 4294967295;
+		return ((this.m_z << 16) + this.m_w & 4294967295) / 4294967296 + .5;
 	}
 
 	/**
@@ -29,7 +28,7 @@ const cellSize = 6;
 const seed = Date.now();
 //const seed = 1674773190194;
 //console.log(seed);
-const rand = new Random(seed);
+const rand = new RandomSeed(seed);
 const tiles = {
 	EMPTY: 0,
 	WALL: 1,
